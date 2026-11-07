@@ -1,0 +1,47 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-{% raw %}${{ github.ref }}{% endraw %}
+  cancel-in-progress: {% raw %}${{ github.event_name == 'pull_request' }}{% endraw %}
+
+jobs:
+  go:
+    uses: as-platform/ci-templates/.github/workflows/go-ci.yml@main
+
+  security:
+    uses: as-platform/ci-templates/.github/workflows/security.yml@main
+
+  image:
+    needs:
+      - go
+      - security
+    uses: as-platform/ci-templates/.github/workflows/image-build.yml@main
+    with:
+      name: ${{ values.name }}
+      registry: {% raw %}${{ vars.ZOT_REGISTRY }}{% endraw %}
+      push: {% raw %}${{ github.event_name == 'push' }}{% endraw %}
+    secrets: inherit
+{%- if values.deployDev %}
+
+  deploy:
+    if: github.event_name == 'push'
+    needs: image
+    uses: as-platform/ci-templates/.github/workflows/deploy-bump.yml@main
+    with:
+      app: ${{ values.name }}
+      tag: {% raw %}${{ needs.image.outputs.tag }}{% endraw %}
+      platform-repo: as-platform/k3s
+      mode: commit
+    secrets: inherit
+{%- endif %}
