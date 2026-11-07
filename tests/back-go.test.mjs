@@ -1,13 +1,12 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { before, describe, it } from 'node:test';
 import { templateEntityV1beta3Validator } from '@backstage/plugin-scaffolder-common';
 import Ajv from 'ajv';
 import YAML from 'yaml';
-import { renderFixture, renderTemplate, root } from '../scripts/render.mjs';
+import { renderFixture, root } from '../scripts/render.mjs';
 
 const templateFile = path.join(root, 'scaffolder', 'back-go', 'template.yaml');
 const templateText = fs.readFileSync(templateFile, 'utf8');
@@ -115,10 +114,10 @@ describe('form', () => {
     assert.deepEqual([...page.required].sort(), ['description', 'name', 'owner']);
   });
 
-  it('defaults to deploy to dev without nightly shutdown', () => {
+  it('defaults to deploy to dev', () => {
     const deploy = template.spec.parameters[1].properties;
+    assert.deepEqual(Object.keys(deploy), ['deployDev']);
     assert.equal(deploy.deployDev.default, true);
-    assert.equal(deploy.nightlyShutdown.default, false);
   });
 });
 
@@ -223,25 +222,11 @@ describe('rendered skeleton', () => {
     assert.equal(values.image.tag, 'bootstrap');
     assert.equal(values.ingress.enabled, true);
     assert.equal(values.ingress.host, 'hello-go.homelab');
-    assert.equal(values.autoscaling.enabled, true);
+    assert.equal(values.autoscaling, undefined);
     assert.equal(values.replicas, undefined);
 
     const bumped = spawnSync('awk', ['-v', 'tag=sha-abc1234', bumpImageTag, file], { encoding: 'utf8' });
     assert.equal(bumped.status, 0);
     assert.equal(YAML.parse(bumped.stdout).image.tag, 'sha-abc1234');
-  });
-
-  it('adds autoscaling only with nightlyShutdown', () => {
-    const outDir = fs.mkdtempSync(path.join(os.tmpdir(), 'back-go-'));
-    try {
-      const parameters = { name: 'hello-go', owner: 'group:default/platform', description: 'x', nightlyShutdown: false };
-      const steps = renderTemplate(templateFile, parameters, outDir);
-      assert.deepEqual(steps, ['fetch-app', 'fetch-platform']);
-      const values = YAML.parse(read(outDir, 'platform', 'apps', 'hello-go', 'values.yaml'));
-      assert.equal(values.autoscaling, undefined);
-      assert.equal(values.ingress.enabled, true);
-    } finally {
-      fs.rmSync(outDir, { recursive: true, force: true });
-    }
   });
 });

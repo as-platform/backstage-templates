@@ -4,7 +4,6 @@
     "name": "plain-go",
     "owner": "group:default/platform",
     "description": "Minimal service",
-    "deployDev": false,
-    "nightlyShutdown": false
+    "deployDev": false
   }
 }

@@ -57,11 +57,6 @@ spec:
           type: boolean
           default: true
           description: Open a pull request in as-platform/k3s and bump the image tag from CI
-        nightlyShutdown:
-          title: Nightly shutdown
-          type: boolean
-          default: false
-          description: Scale to zero outside working hours (KEDA cron). Only with deploy to dev
   steps:
     - id: fetch-app
       name: Render service skeleton
@@ -96,7 +91,6 @@ spec:
         targetPath: ./platform
         values:
           name: ${{ parameters.name }}
-          nightlyShutdown: ${{ parameters.nightlyShutdown }}
     - id: platform-pr
       name: Open pull request in k3s
       if: ${{ parameters.deployDev }}

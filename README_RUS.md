@@ -24,12 +24,12 @@
 
 ## Шаблон `back-go`
 
-**Форма:** имя, описание, владелец (группа каталога), деплой в dev (по умолчанию включён), ночное отключение (по умолчанию выключено).
+**Форма:** имя, описание, владелец (группа каталога), деплой в dev (по умолчанию включён).
 
 - Имя становится именем репозитория, namespace, Application в Argo CD и релиза Helm: от 3 до 32 символов, строчные буквы, цифры и дефисы. Имена компонентов платформы и их namespace отклоняются.
 - Репозитории всегда создаются приватными: их CI идёт на self-hosted раннерах.
 
-**Шаги:** рендер скелета → создание репозитория → рендер `apps/<имя>/values.yaml` → PR в [`k3s`](https://github.com/as-platform/k3s) → регистрация компонента в каталоге. Последние три выполняются только при включённом деплое в dev.
+**Шаги:** рендер скелета → создание репозитория → рендер `apps/<имя>/values.yaml` → PR в [`k3s`](https://github.com/as-platform/k3s) → регистрация компонента в каталоге. Рендер values и PR выполняются только при включённом деплое в dev, регистрация идёт всегда.
 
 **Созданный сервис** слушает `:8080`, отдаёт `/healthz` и `/readyz`, корректно завершается и приходит с Dockerfile на golden-образах, `catalog-info.yaml`, конфигом Renovate и CI. Workflow вызывает переиспользуемые workflow из [`ci-templates`](https://github.com/as-platform/ci-templates) (`@main`): lint и тесты Go, проверка безопасности (gitleaks, trivy, hadolint, semgrep), затем сборка, скан, push и подпись образа cosign, затем смена тега образа в `k3s`.
 
@@ -42,7 +42,7 @@ npm run render -- back-go-full
 npm run check:rendered    # go vet, тесты, golangci-lint, actionlint, hadolint на отрендеренных проектах
 ```
 
-`check:rendered` требует `go`, `golangci-lint`, `actionlint` и `hadolint` в `PATH`. CI этого репозитория гоняет то же самое на GitHub-hosted раннере. Версии и sha256 этих четырёх инструментов закреплены в `.github/workflows/ci.yml` и обновляются вручную; actions и npm-пакеты обновляет Renovate.
+`check:rendered` требует `go`, `golangci-lint`, `actionlint` и `hadolint` в `PATH`. CI этого репозитория гоняет то же самое на GitHub-hosted раннере. Версии и sha256 этих четырёх инструментов закреплены в `.github/workflows/ci.yml` и обновляются вручную; actions и npm-пакеты обновляет Renovate. Тест смены тега образа хранит копию скрипта `awk` из `ci-templates/actions/bump-image-tag`; менять их нужно вместе.
 
 ## После создания сервиса шаблоном
 
@@ -70,7 +70,7 @@ gh secret set PLATFORM_TOKEN -R as-platform/<имя>
 
 - Запуск шаблона в Backstage (dry run, интеграция с GitHub, свой action для секретов репозитория).
 - Остальные три шаблона, опция harness `as-skill` в форме и общие части `_shared/{harness,ci}`: CI лежит в скелете `back-go`, пока он не понадобится второму шаблону.
-- Масштабирование в ноль вне ночного окна настроено (cron `ScaledObject` KEDA), но пока не наблюдалось.
+- Ссылка на PR в `k3s` в выводе при выключенном деплое в dev указывает на пропущенный шаг; проверить на первом dry run.
 
 ## Связанные репозитории
 

@@ -24,12 +24,12 @@ Backstage scaffolder templates and repository skeletons for the [as-platform](ht
 
 ## The `back-go` template
 
-**Form:** name, description, owner (a catalog group), deploy to dev (default on), nightly shutdown (default off).
+**Form:** name, description, owner (a catalog group), deploy to dev (default on).
 
 - The name becomes the repository, namespace, Argo CD Application and Helm release name: 3 to 32 characters, lowercase letters, digits and dashes. Names of platform components and their namespaces are rejected.
 - Repositories are always created private, because their CI runs on self-hosted runners.
 
-**Steps:** render the skeleton → create the repository → render `apps/<name>/values.yaml` → open a pull request in [`k3s`](https://github.com/as-platform/k3s) → register the component in the catalog. The last three apply only when deploy to dev is on.
+**Steps:** render the skeleton → create the repository → render `apps/<name>/values.yaml` → open a pull request in [`k3s`](https://github.com/as-platform/k3s) → register the component in the catalog. Rendering the values and opening the pull request run only when deploy to dev is on; the registration always runs.
 
 **The generated service** listens on `:8080` with `/healthz` and `/readyz`, shuts down gracefully, and ships a Dockerfile on the golden images, `catalog-info.yaml`, a Renovate config and a CI workflow. The workflow calls the reusable workflows of [`ci-templates`](https://github.com/as-platform/ci-templates) (`@main`): Go lint and tests, a security scan (gitleaks, trivy, hadolint, semgrep), then image build, scan, push and cosign signature, then a bump of the image tag in `k3s`.
 
@@ -42,7 +42,7 @@ npm run render -- back-go-full
 npm run check:rendered    # go vet, tests, golangci-lint, actionlint, hadolint on rendered projects
 ```
 
-`check:rendered` needs `go`, `golangci-lint`, `actionlint` and `hadolint` on `PATH`. The CI of this repository runs the same on a GitHub-hosted runner. The versions and sha256 sums of those four tools are pinned in `.github/workflows/ci.yml` and bumped by hand; Renovate handles the actions and the npm packages.
+`check:rendered` needs `go`, `golangci-lint`, `actionlint` and `hadolint` on `PATH`. The CI of this repository runs the same on a GitHub-hosted runner. The versions and sha256 sums of those four tools are pinned in `.github/workflows/ci.yml` and bumped by hand; Renovate handles the actions and the npm packages. The image tag bump test keeps a copy of the `awk` script from `ci-templates/actions/bump-image-tag`; change both together.
 
 ## After the template creates a service
 
@@ -70,7 +70,7 @@ First deploy:
 
 - Running the template in Backstage (dry run, the GitHub integration, a custom action that sets the repository secrets).
 - The other three templates, the `as-skill` harness option in the form, and the shared `_shared/{harness,ci}` parts: the CI lives in the `back-go` skeleton until a second template needs it.
-- Scale-to-zero outside the nightly window is configured (a KEDA cron `ScaledObject`) but has not been observed yet.
+- The output link to the `k3s` pull request when deploy to dev is off points at a skipped step; check it on the first dry run.
 
 ## Related repositories
 

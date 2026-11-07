@@ -4,7 +4,6 @@
     "name": "hello-go",
     "owner": "group:default/platform",
     "description": "Hello: world",
-    "deployDev": true,
-    "nightlyShutdown": true
+    "deployDev": true
   }
 }

@@ -4,7 +4,3 @@ image:
 ingress:
   enabled: true
   host: ${{ values.name }}.homelab
-{%- if values.nightlyShutdown %}
-autoscaling:
-  enabled: true
-{%- endif %}
