@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"example.com/back-go/internal/server"
+	"github.com/as-platform/${{ values.name }}/internal/server"
 )
 
 func main() {

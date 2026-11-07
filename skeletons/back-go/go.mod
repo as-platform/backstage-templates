@@ -1,3 +1,3 @@
-module example.com/back-go
+module github.com/as-platform/${{ values.name }}
 
 go 1.27

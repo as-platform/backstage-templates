@@ -20,7 +20,7 @@ func NewHandler() http.Handler {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 
-		response := map[string]string{"service": "back-go"}
+		response := map[string]string{"service": "${{ values.name }}"}
 		_ = json.NewEncoder(w).Encode(response)
 	})
 

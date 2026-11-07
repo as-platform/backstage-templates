@@ -72,8 +72,8 @@ func TestNewHandler(t *testing.T) {
 					t.Fatalf("failed to decode JSON response: %v", err)
 				}
 
-				if body["service"] != "back-go" {
-					t.Errorf("expected service field to be 'back-go', got %q", body["service"])
+				if body["service"] != "${{ values.name }}" {
+					t.Errorf("expected service field to be '${{ values.name }}', got %q", body["service"])
 				}
 			}
 		})
