@@ -13,7 +13,15 @@
       "matchPackageNames": [
         "zot.homelab/**"
       ],
-      "enabled": false
+      "enabled": false,
+      "minimumReleaseAge": "7 days"
+    },
+    {
+      "description": "Wait for new releases to settle before proposing updates",
+      "matchPackageNames": [
+        "*"
+      ],
+      "minimumReleaseAge": "7 days"
     }
   ]
 }

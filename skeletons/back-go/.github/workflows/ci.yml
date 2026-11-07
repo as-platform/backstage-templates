@@ -31,7 +31,11 @@ jobs:
       name: ${{ values.name }}
       registry: {% raw %}${{ vars.ZOT_REGISTRY }}{% endraw %}
       push: {% raw %}${{ github.event_name == 'push' }}{% endraw %}
-    secrets: inherit
+    secrets:
+      ZOT_USER: {% raw %}${{ secrets.ZOT_USER }}{% endraw %}
+      ZOT_PASSWORD: {% raw %}${{ secrets.ZOT_PASSWORD }}{% endraw %}
+      COSIGN_PRIVATE_KEY: {% raw %}${{ secrets.COSIGN_PRIVATE_KEY }}{% endraw %}
+      COSIGN_PASSWORD: {% raw %}${{ secrets.COSIGN_PASSWORD }}{% endraw %}
 {%- if values.deployDev %}
 
   deploy:
@@ -43,5 +47,6 @@ jobs:
       tag: {% raw %}${{ needs.image.outputs.tag }}{% endraw %}
       platform-repo: as-platform/k3s
       mode: commit
-    secrets: inherit
+    secrets:
+      PLATFORM_TOKEN: {% raw %}${{ secrets.PLATFORM_TOKEN }}{% endraw %}
 {%- endif %}

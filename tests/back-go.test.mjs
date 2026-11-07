@@ -159,7 +159,9 @@ describe('rendered skeleton', () => {
     assert.equal(catalog.metadata.annotations['backstage.io/kubernetes-id'], 'hello-go');
     assert.equal(catalog.metadata.annotations['github.com/project-slug'], 'as-platform/hello-go');
     assert.equal(catalog.metadata.annotations['argocd/app-name'], 'hello-go');
-    assert.deepEqual(JSON.parse(read(app, 'renovate.json')).packageRules[0].matchPackageNames, ['zot.homelab/**']);
+    const { packageRules } = JSON.parse(read(app, 'renovate.json'));
+    assert.deepEqual(packageRules[0].matchPackageNames, ['zot.homelab/**']);
+    assert.ok(packageRules.every((rule) => rule.minimumReleaseAge === '7 days'));
   });
 
   it('keeps GitHub expressions in the workflow', () => {
@@ -170,6 +172,11 @@ describe('rendered skeleton', () => {
       '${{ vars.ZOT_REGISTRY }}',
       "${{ github.event_name == 'push' }}",
       '${{ needs.image.outputs.tag }}',
+      '${{ secrets.ZOT_USER }}',
+      '${{ secrets.ZOT_PASSWORD }}',
+      '${{ secrets.COSIGN_PRIVATE_KEY }}',
+      '${{ secrets.COSIGN_PASSWORD }}',
+      '${{ secrets.PLATFORM_TOKEN }}',
     ]) {
       assert.ok(text.includes(expression), expression);
     }
@@ -180,15 +187,27 @@ describe('rendered skeleton', () => {
     assert.deepEqual(Object.keys(jobs), ['go', 'security', 'image', 'deploy']);
     assert.deepEqual(jobs.image.needs, ['go', 'security']);
     assert.equal(jobs.image.with.name, 'hello-go');
-    assert.equal(jobs.image.secrets, 'inherit');
+    assert.deepEqual(jobs.image.secrets, {
+      ZOT_USER: '${{ secrets.ZOT_USER }}',
+      ZOT_PASSWORD: '${{ secrets.ZOT_PASSWORD }}',
+      COSIGN_PRIVATE_KEY: '${{ secrets.COSIGN_PRIVATE_KEY }}',
+      COSIGN_PASSWORD: '${{ secrets.COSIGN_PASSWORD }}',
+    });
     assert.equal(jobs.image.with.smoke, undefined);
     assert.equal(jobs.deploy.needs, 'image');
     assert.equal(jobs.deploy.if, "github.event_name == 'push'");
     assert.equal(jobs.deploy.with.app, 'hello-go');
     assert.equal(jobs.deploy.with['platform-repo'], 'as-platform/k3s');
     assert.equal(jobs.deploy.with.mode, 'commit');
+    assert.deepEqual(jobs.deploy.secrets, { PLATFORM_TOKEN: '${{ secrets.PLATFORM_TOKEN }}' });
     for (const job of Object.values(jobs)) {
       assert.match(job.uses, /^as-platform\/ci-templates\/\.github\/workflows\/[a-z-]+\.yml@main$/);
+    }
+  });
+
+  it('never passes all secrets to reusable workflows', () => {
+    for (const { outDir } of [full, minimal]) {
+      assert.doesNotMatch(read(outDir, 'app', '.github', 'workflows', 'ci.yml'), /secrets:\s*inherit/);
     }
   });
 
