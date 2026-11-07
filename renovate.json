@@ -1,0 +1,24 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "helpers:pinGitHubActionDigests",
+    ":semanticCommits"
+  ],
+  "schedule": [
+    "before 6am on monday"
+  ],
+  "ignorePaths": [
+    "skeletons/**",
+    "**/node_modules/**"
+  ],
+  "packageRules": [
+    {
+      "description": "Backstage packages move together",
+      "matchPackageNames": [
+        "@backstage/**"
+      ],
+      "groupName": "backstage"
+    }
+  ]
+}
