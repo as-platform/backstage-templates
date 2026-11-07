@@ -1,0 +1,138 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: back-go
+  title: Go backend service
+  description: HTTP service in Go with CI, a signed image in Zot and an optional deploy to the dev cluster
+  tags:
+    - go
+    - backend
+spec:
+  owner: group:default/platform
+  type: service
+  parameters:
+    - title: Service
+      required:
+        - name
+        - owner
+        - description
+      properties:
+        name:
+          title: Name
+          type: string
+          description: Becomes the repository, namespace, Application and release name. Lowercase letters, digits and dashes, 3 to 32 characters. Names of platform components and namespaces are reserved
+          pattern: '^(?!kube-)[a-z][a-z0-9-]{1,30}[a-z0-9]$'
+          not:
+            enum:
+              - argocd
+              - sealed-secrets
+              - metallb
+              - traefik
+              - cert-manager
+              - zot
+              - keda
+              - github-runner
+              - monitoring
+              - backstage
+              - postgres
+              - kyverno
+              - storage
+              - default
+              - podinfo
+          ui:autofocus: true
+        description:
+          title: Description
+          type: string
+        owner:
+          title: Owner
+          type: string
+          ui:field: OwnerPicker
+          ui:options:
+            catalogFilter:
+              kind: Group
+    - title: Deploy
+      properties:
+        deployDev:
+          title: Deploy to dev
+          type: boolean
+          default: true
+          description: Open a pull request in as-platform/k3s and bump the image tag from CI
+        nightlyShutdown:
+          title: Nightly shutdown
+          type: boolean
+          default: false
+          description: Scale to zero outside working hours (KEDA cron). Only with deploy to dev
+  steps:
+    - id: fetch-app
+      name: Render service skeleton
+      action: fetch:template
+      input:
+        url: ../../skeletons/back-go
+        targetPath: ./app
+        values:
+          name: ${{ parameters.name }}
+          owner: ${{ parameters.owner }}
+          description: ${{ parameters.description }}
+          deployDev: ${{ parameters.deployDev }}
+    - id: publish-repo
+      name: Create repository
+      action: publish:github
+      input:
+        repoUrl: github.com?owner=as-platform&repo=${{ parameters.name }}
+        description: ${{ parameters.description }}
+        sourcePath: ./app
+        repoVisibility: private
+        defaultBranch: main
+        deleteBranchOnMerge: true
+        gitCommitMessage: 'feat: scaffold service from back-go template'
+        repoVariables:
+          ZOT_REGISTRY: zot.homelab
+    - id: fetch-platform
+      name: Render platform values
+      if: ${{ parameters.deployDev }}
+      action: fetch:template
+      input:
+        url: ../../skeletons/_shared/platform-pr
+        targetPath: ./platform
+        values:
+          name: ${{ parameters.name }}
+          nightlyShutdown: ${{ parameters.nightlyShutdown }}
+    - id: platform-pr
+      name: Open pull request in k3s
+      if: ${{ parameters.deployDev }}
+      action: publish:github:pull-request
+      input:
+        repoUrl: github.com?owner=as-platform&repo=k3s
+        sourcePath: ./platform
+        targetBranchName: main
+        branchName: feature/add-app-${{ parameters.name }}
+        title: 'feat(apps): add ${{ parameters.name }}'
+        commitMessage: 'feat(apps): add ${{ parameters.name }}'
+        description: |
+          ## Why
+          New service `${{ parameters.name }}` created from the `back-go` template.
+
+          ## What changed
+          - `apps/${{ parameters.name }}/values.yaml`: image `zot.homelab/apps/${{ parameters.name }}`, ingress `${{ parameters.name }}.homelab`
+
+          ## How to verify
+          - The first CI run in `as-platform/${{ parameters.name }}` pushed an image to Zot
+          - After the merge re-run the `deploy` job of that repository, then the Application `${{ parameters.name }}` becomes `Synced` and `Healthy`
+
+          ## Risks
+          - Merge only after the first image is in Zot: the placeholder tag `bootstrap` does not exist and the Application stays `Degraded` until the `deploy` job bumps it
+    - id: register
+      name: Register component
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps['publish-repo'].output.repoContentsUrl }}
+        catalogInfoPath: /catalog-info.yaml
+  output:
+    links:
+      - title: Repository
+        url: ${{ steps['publish-repo'].output.remoteUrl }}
+      - title: Pull request in k3s
+        url: ${{ steps['platform-pr'].output.remoteUrl }}
+      - title: Open in catalog
+        icon: catalog
+        entityRef: ${{ steps['register'].output.entityRef }}
