@@ -1,0 +1,19 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":semanticCommits"
+  ],
+  "schedule": [
+    "before 6am on monday"
+  ],
+  "packageRules": [
+    {
+      "description": "Mend cloud app cannot reach zot.homelab",
+      "matchPackageNames": [
+        "zot.homelab/**"
+      ],
+      "enabled": false
+    }
+  ]
+}
