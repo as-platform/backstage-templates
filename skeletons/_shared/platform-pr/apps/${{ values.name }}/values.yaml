@@ -1,0 +1,10 @@
+image:
+  repository: zot.homelab/apps/${{ values.name }}
+  tag: "bootstrap"
+ingress:
+  enabled: true
+  host: ${{ values.name }}.homelab
+{%- if values.nightlyShutdown %}
+autoscaling:
+  enabled: true
+{%- endif %}
