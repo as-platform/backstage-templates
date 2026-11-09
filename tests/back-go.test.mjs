@@ -83,6 +83,13 @@ describe('template.yaml', () => {
     assert.equal(pull.if, '${{ parameters.deployDev }}');
   });
 
+  it('limits the owner to existing catalog groups', () => {
+    const owner = template.spec.parameters.flatMap((page) => Object.entries(page.properties)).find(([name]) => name === 'owner')[1];
+    assert.equal(owner['ui:field'], 'OwnerPicker');
+    assert.equal(owner['ui:options'].allowArbitraryValues, false);
+    assert.equal(owner['ui:options'].catalogFilter.kind, 'Group');
+  });
+
   it('gives the new repository access to the runner group right after creating it', () => {
     const publishIndex = template.spec.steps.findIndex((step) => step.action === 'publish:github');
     const publish = template.spec.steps[publishIndex];

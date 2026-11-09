@@ -48,6 +48,7 @@ spec:
           type: string
           ui:field: OwnerPicker
           ui:options:
+            allowArbitraryValues: false
             catalogFilter:
               kind: Group
     - title: Deploy
