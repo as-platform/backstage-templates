@@ -4,7 +4,7 @@
 
 Backstage scaffolder templates and repository skeletons for the [as-platform](https://github.com/as-platform) homelab platform, with CI/CD and security wired in.
 
-> **Status: one template works, the portal is not there yet.** `back-go` is verified end to end without Backstage: a service rendered from it builds in CI, lands in the registry as a signed image and runs in the cluster behind HTTPS. It has not been run inside Backstage itself (the [`backstage`](https://github.com/as-platform/backstage) portal is still a skeleton), so the `publish:github`, `publish:github:pull-request` and `catalog:register` steps are unverified. `back-python`, `front-react` and `monorepo` are empty.
+> **Status: one template works, inside Backstage too.** `back-go` was run from the [`backstage`](https://github.com/as-platform/backstage) portal on 2026-11-09 with the deploy option on and off: it creates a private repository, gives it access to the runners, registers the component and, with the deploy option, opens the pull request in `k3s`. A service rendered from it was also verified end to end on 2026-11-07: it builds in CI, lands in the registry as a signed image and runs in the cluster behind HTTPS. The dry run is not checked. `back-python`, `front-react` and `monorepo` are empty.
 
 ## Layout
 
@@ -29,7 +29,9 @@ Backstage scaffolder templates and repository skeletons for the [as-platform](ht
 - The name becomes the repository, namespace, Argo CD Application and Helm release name: 3 to 32 characters, lowercase letters, digits and dashes. Names of platform components and their namespaces are rejected.
 - Repositories are always created private, because their CI runs on self-hosted runners.
 
-**Steps:** render the skeleton → create the repository → render `apps/<name>/values.yaml` → open a pull request in [`k3s`](https://github.com/as-platform/k3s) → register the component in the catalog. Rendering the values and opening the pull request run only when deploy to dev is on; the registration always runs.
+**Steps:** render the skeleton → create the repository → give the repository access to the runner group → render `apps/<name>/values.yaml` → open a pull request in [`k3s`](https://github.com/as-platform/k3s) → register the component in the catalog. Rendering the values and opening the pull request run only when deploy to dev is on; the runner access and the registration always run.
+
+The runner access step calls the custom action `github:runner-group:add-repo` of the portal. Without it the CI of a new private repository waits in the queue, because the runner group `Default` is limited to selected repositories.
 
 **The generated service** listens on `:8080` with `/healthz` and `/readyz`, shuts down gracefully, and ships a Dockerfile on the golden images, `catalog-info.yaml`, a Renovate config and a CI workflow. The workflow calls the reusable workflows of [`ci-templates`](https://github.com/as-platform/ci-templates) (`@main`): Go lint and tests, a security scan (gitleaks, trivy, hadolint, semgrep), then image build, scan, push and cosign signature, then a bump of the image tag in `k3s`.
 
@@ -68,9 +70,9 @@ First deploy:
 
 ## Not done yet
 
-- Running the template in Backstage (dry run, the GitHub integration, a custom action that sets the repository secrets).
+- The dry run of the template, and a custom action that sets the repository secrets: the portal does not hold the registry password or the signing key, so they stay a manual step.
 - The other three templates, the `as-skill` harness option in the form, and the shared `_shared/{harness,ci}` parts: the CI lives in the `back-go` skeleton until a second template needs it.
-- The output link to the `k3s` pull request when deploy to dev is off points at a skipped step; check it on the first dry run.
+- The form rejects a reserved name with the generic message `'Name' must NOT be valid`; the field description explains that platform names are reserved.
 
 ## Related repositories
 
