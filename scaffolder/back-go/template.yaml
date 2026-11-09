@@ -82,6 +82,12 @@ spec:
         gitCommitMessage: 'feat: scaffold service from back-go template'
         repoVariables:
           ZOT_REGISTRY: zot.homelab
+    - id: runner-access
+      name: Grant self-hosted runner access
+      action: github:runner-group:add-repo
+      input:
+        repoUrl: github.com?owner=as-platform&repo=${{ parameters.name }}
+        runnerGroup: Default
     - id: fetch-platform
       name: Render platform values
       if: ${{ parameters.deployDev }}

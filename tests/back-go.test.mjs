@@ -82,6 +82,14 @@ describe('template.yaml', () => {
     assert.equal(pull.input.repoUrl, 'github.com?owner=as-platform&repo=k3s');
     assert.equal(pull.if, '${{ parameters.deployDev }}');
   });
+
+  it('gives the new repository access to the runner group right after creating it', () => {
+    const publishIndex = template.spec.steps.findIndex((step) => step.action === 'publish:github');
+    const publish = template.spec.steps[publishIndex];
+    const access = template.spec.steps[publishIndex + 1];
+    assert.equal(access?.action, 'github:runner-group:add-repo');
+    assert.equal(access.input.repoUrl, publish.input.repoUrl);
+  });
 });
 
 describe('form', () => {
