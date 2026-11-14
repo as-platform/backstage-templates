@@ -23,27 +23,37 @@ const withoutComments = new Set([
 const suppression = /noqa|nosec|nosemgrep|type:\s*ignore|eslint-disable|nolint|@ts-ignore|@ts-expect-error/;
 
 const hashComment = /(^|\s)#/m;
-const slashComment = /(^|\s)\/\/|\/\*/m;
+const iniComment = /^\s*[;#]/m;
+const slashComment = /\/\/|\/\*/;
 const blockComment = /\/\*/;
 const markupComment = /<!--/;
 
 const quoted = /'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"|`(?:[^`\\]|\\.)*`/g;
 
 const commentRule = (base) => {
-  if (withoutComments.has(base) || /\.(json|md)$/.test(base)) {
+  if (withoutComments.has(base) || base.endsWith('.md')) {
     return null;
   }
-  if (base === 'Dockerfile' || ['.gitignore', '.dockerignore', '.npmrc'].includes(base) || /\.(py|toml|ya?ml)$/.test(base)) {
-    return { pattern: hashComment };
+  if (/^tsconfig.*\.json$/.test(base)) {
+    return { patterns: [slashComment], withoutStrings: true };
+  }
+  if (base.endsWith('.json')) {
+    return null;
+  }
+  if (base === '.npmrc') {
+    return { patterns: [iniComment] };
+  }
+  if (base === 'Dockerfile' || ['.gitignore', '.dockerignore'].includes(base) || /\.(py|toml|ya?ml)$/.test(base)) {
+    return { patterns: [hashComment] };
   }
   if (/\.(go|ts|tsx|js|mjs|cjs)$/.test(base)) {
-    return { pattern: slashComment, withoutStrings: true };
+    return { patterns: [slashComment], withoutStrings: true };
   }
   if (base.endsWith('.css')) {
-    return { pattern: blockComment };
+    return { patterns: [blockComment] };
   }
   if (base.endsWith('.html')) {
-    return { pattern: markupComment };
+    return { patterns: [markupComment, slashComment], withoutStrings: true };
   }
   throw new Error(`no comment rule for ${base}: add one in templates.test.mjs`);
 };
@@ -187,7 +197,9 @@ for (const name of serviceTemplates) {
           const rule = commentRule(base);
           if (rule) {
             const code = rule.withoutStrings ? content.replace(quoted, '""') : content;
-            assert.doesNotMatch(code, rule.pattern, file);
+            for (const pattern of rule.patterns) {
+              assert.doesNotMatch(code, pattern, file);
+            }
           }
           if (!exemptFromSuppressionCheck(base)) {
             assert.doesNotMatch(content, suppression, file);
@@ -209,7 +221,7 @@ for (const name of serviceTemplates) {
 describe('service templates', () => {
   it('ship no scanner ignore files', () => {
     const ignores = files(path.join(root, 'skeletons')).filter((file) =>
-      ['.trivyignore', '.trivyignore.yaml', '.semgrepignore', '.gitleaksignore', '.hadolint.yaml', '.hadolint.yml'].includes(path.basename(file)),
+      ['.trivyignore', '.trivyignore.yaml', '.trivyignore.yml', 'trivy.yaml', '.semgrepignore', '.gitleaksignore', '.gitleaks.toml', '.hadolint.yaml', '.hadolint.yml', '.eslintignore'].includes(path.basename(file)),
     );
     assert.deepEqual(ignores, []);
   });
