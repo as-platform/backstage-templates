@@ -4,7 +4,13 @@ import path from 'node:path';
 import { describe, it } from 'node:test';
 import { templateEntityV1beta3Validator } from '@backstage/plugin-scaffolder-common';
 import Ajv from 'ajv';
-import { conventionalCommit, loadTemplate, reservedNames, serviceTemplates } from './helpers.mjs';
+import {
+  conventionalCommit,
+  implementedTemplates,
+  loadTemplate,
+  reservedNames,
+  serviceTemplates,
+} from './helpers.mjs';
 
 const longestName = 'a'.repeat(32);
 
@@ -110,12 +116,19 @@ for (const name of serviceTemplates) {
     });
 
     it('defaults to deploy to dev', () => {
-      assert.equal(properties(template).deployDev.default, true);
+      const deploy = template.spec.parameters[1].properties;
+      assert.deepEqual(Object.keys(deploy), ['deployDev']);
+      assert.equal(deploy.deployDev.default, true);
     });
   });
 }
 
 describe('service templates', () => {
+  it('are all covered by the shared checks', () => {
+    const implemented = implementedTemplates().filter((name) => name !== 'monorepo');
+    assert.deepEqual(implemented.sort(), [...serviceTemplates].sort());
+  });
+
   it('share one name schema', () => {
     const [first, ...rest] = serviceTemplates.map((name) => properties(loadTemplate(name).template).name);
     for (const schema of rest) {

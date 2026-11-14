@@ -5,6 +5,11 @@ import { root } from '../scripts/render.mjs';
 
 export const serviceTemplates = ['back-go'];
 
+export const implementedTemplates = () =>
+  fs
+    .readdirSync(path.join(root, 'scaffolder'))
+    .filter((name) => fs.statSync(path.join(root, 'scaffolder', name, 'template.yaml')).size > 0);
+
 export const reservedNames = [
   'argocd', 'sealed-secrets', 'metallb', 'traefik', 'cert-manager', 'zot', 'keda', 'github-runner',
   'monitoring', 'backstage', 'postgres', 'kyverno', 'storage', 'default', 'podinfo', 'kube-system',
