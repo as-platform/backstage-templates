@@ -4,3 +4,8 @@ image:
 ingress:
   enabled: true
   host: ${{ values.name }}.homelab
+{% if values.memoryLimit -%}
+resources:
+  limits:
+    memory: ${{ values.memoryLimit }}
+{% endif -%}
