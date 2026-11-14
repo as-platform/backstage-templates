@@ -1,0 +1,9 @@
+{
+  "template": "front-react",
+  "parameters": {
+    "name": "hello-web",
+    "owner": "group:default/platform",
+    "description": "Hello: world",
+    "deployDev": true
+  }
+}

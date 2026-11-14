@@ -27,24 +27,28 @@ const slashComment = /(^|\s)\/\/|\/\*/m;
 const blockComment = /\/\*/;
 const markupComment = /<!--/;
 
-const commentPattern = (base) => {
+const quoted = /'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"|`(?:[^`\\]|\\.)*`/g;
+
+const commentRule = (base) => {
   if (withoutComments.has(base) || /\.(json|md)$/.test(base)) {
     return null;
   }
   if (base === 'Dockerfile' || ['.gitignore', '.dockerignore', '.npmrc'].includes(base) || /\.(py|toml|ya?ml)$/.test(base)) {
-    return hashComment;
+    return { pattern: hashComment };
   }
   if (/\.(go|ts|tsx|js|mjs|cjs)$/.test(base)) {
-    return slashComment;
+    return { pattern: slashComment, withoutStrings: true };
   }
   if (base.endsWith('.css')) {
-    return blockComment;
+    return { pattern: blockComment };
   }
   if (base.endsWith('.html')) {
-    return markupComment;
+    return { pattern: markupComment };
   }
   throw new Error(`no comment rule for ${base}: add one in templates.test.mjs`);
 };
+
+const exemptFromSuppressionCheck = (base) => withoutComments.has(base) || base.endsWith('.md');
 
 const properties = (template) => Object.assign({}, ...template.spec.parameters.map((page) => page.properties));
 
@@ -179,14 +183,14 @@ for (const name of serviceTemplates) {
       for (const { outDir } of rendered) {
         for (const file of files(outDir)) {
           const base = path.basename(file);
-          const comment = commentPattern(base);
-          if (comment === null && base !== 'package-lock.json' && !withoutComments.has(base) && !base.endsWith('.md')) {
-            assert.doesNotMatch(fs.readFileSync(file, 'utf8'), suppression, file);
+          const content = fs.readFileSync(file, 'utf8');
+          const rule = commentRule(base);
+          if (rule) {
+            const code = rule.withoutStrings ? content.replace(quoted, '""') : content;
+            assert.doesNotMatch(code, rule.pattern, file);
           }
-          if (comment) {
-            const text = fs.readFileSync(file, 'utf8');
-            assert.doesNotMatch(text, comment, file);
-            assert.doesNotMatch(text, suppression, file);
+          if (!exemptFromSuppressionCheck(base)) {
+            assert.doesNotMatch(content, suppression, file);
           }
         }
       }

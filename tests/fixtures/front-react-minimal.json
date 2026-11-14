@@ -1,0 +1,9 @@
+{
+  "template": "front-react",
+  "parameters": {
+    "name": "plain-web",
+    "owner": "group:default/platform",
+    "description": "Minimal frontend",
+    "deployDev": false
+  }
+}
