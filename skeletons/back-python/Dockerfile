@@ -9,7 +9,7 @@ WORKDIR /home/app
 COPY --chown=app:app pyproject.toml uv.lock ./
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-RUN uv export --frozen --no-dev --no-emit-project \
+RUN uv export --locked --no-dev --no-emit-project \
  | uv pip install --compile-bytecode --target /home/app/site --no-deps -r - \
  && rm -rf /home/app/site/bin /home/app/site/.lock
 
