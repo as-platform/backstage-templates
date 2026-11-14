@@ -26,7 +26,7 @@ check_node() {
 }
 
 scan() {
-  trivy fs --quiet --skip-dirs .venv --skip-dirs node_modules --scanners vuln,secret --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 .
+  trivy fs --quiet --skip-dirs .venv --skip-dirs node_modules --scanners vuln,secret,misconfig --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 .
   uvx --python 3.13 semgrep@1.185.0 scan --config p/default --error --quiet --metrics=off --no-git-ignore --exclude .venv --exclude node_modules .
 }
 
