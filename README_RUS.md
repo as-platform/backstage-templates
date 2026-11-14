@@ -17,6 +17,7 @@
 │   └── monorepo/template.yaml       # монорепозиторий (пусто)
 ├── skeletons
 │   ├── back-go/                     # скелет Go-сервиса
+│   ├── _shared/ci/                  # ci.yml и renovate.json, общие для шаблонов сервисов
 │   └── _shared/platform-pr/         # values.yaml для PR в k3s
 ├── scripts                          # render.mjs, check-rendered.sh
 └── tests                            # фикстуры и npm test
@@ -73,7 +74,7 @@ gh secret set PLATFORM_TOKEN -R as-platform/<имя>
 ## Что ещё не сделано
 
 - Dry run шаблона и свой action для секретов репозитория: у портала нет пароля реестра и ключа подписи, поэтому секреты остаются ручным шагом.
-- Остальные три шаблона, опция harness `as-skill` в форме и общие части `_shared/{harness,ci}`: CI лежит в скелете `back-go`, пока он не понадобится второму шаблону.
+- Остальные три шаблона и опция harness `as-skill` в форме (отложена). CI и `renovate.json` уже лежат в `skeletons/_shared/ci` и рендерятся отдельным шагом `fetch-ci`.
 - Форма отклоняет зарезервированное имя общим сообщением `'Name' must NOT be valid`; описание поля поясняет, что имена платформы зарезервированы.
 
 ## Связанные репозитории

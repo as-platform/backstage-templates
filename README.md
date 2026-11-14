@@ -17,6 +17,7 @@ Backstage scaffolder templates and repository skeletons for the [as-platform](ht
 │   └── monorepo/template.yaml       # monorepo (empty)
 ├── skeletons
 │   ├── back-go/                     # Go service skeleton
+│   ├── _shared/ci/                  # ci.yml and renovate.json shared by the service templates
 │   └── _shared/platform-pr/         # values.yaml for the pull request to k3s
 ├── scripts                          # render.mjs, check-rendered.sh
 └── tests                            # fixtures and npm test
@@ -73,7 +74,7 @@ After deleting a service repository, remove `apps/<name>` from `k3s` too: a stal
 ## Not done yet
 
 - The dry run of the template, and a custom action that sets the repository secrets: the portal does not hold the registry password or the signing key, so they stay a manual step.
-- The other three templates, the `as-skill` harness option in the form, and the shared `_shared/{harness,ci}` parts: the CI lives in the `back-go` skeleton until a second template needs it.
+- The other three templates and the `as-skill` harness option in the form (postponed). The CI and `renovate.json` already live in `skeletons/_shared/ci`; they are rendered by a separate `fetch-ci` step.
 - The form rejects a reserved name with the generic message `'Name' must NOT be valid`; the field description explains that platform names are reserved.
 
 ## Related repositories
