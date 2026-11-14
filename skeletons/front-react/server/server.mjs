@@ -77,7 +77,10 @@ const sendFile = (req, res, file, size, cacheControl) => {
 export const createHandler = (root) => {
   let realRoot;
   const rootOf = () => {
-    realRoot ??= realpath(root);
+    realRoot ??= realpath(root).catch((error) => {
+      realRoot = undefined;
+      throw error;
+    });
     return realRoot;
   };
 
@@ -106,7 +109,13 @@ export const createHandler = (root) => {
       return;
     }
 
-    const trusted = await rootOf();
+    let trusted;
+    try {
+      trusted = await rootOf();
+    } catch {
+      respond(res, 404);
+      return;
+    }
     const size = await fileSize(trusted, target);
     if (size !== null) {
       sendFile(req, res, target, size, pathname.startsWith('/assets/') ? immutable : 'no-cache');

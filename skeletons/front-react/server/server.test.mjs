@@ -11,9 +11,9 @@ describe('static server', () => {
   let server;
   let port;
 
-  const call = (method, target) =>
+  const call = (method, target, targetPort = port) =>
     new Promise((resolve, reject) => {
-      const req = request({ port, method, path: target }, (res) => {
+      const req = request({ port: targetPort, method, path: target }, (res) => {
         const chunks = [];
         res.on('data', (chunk) => chunks.push(chunk));
         res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, body: Buffer.concat(chunks).toString() }));
@@ -122,7 +122,7 @@ describe('static server', () => {
     assert.doesNotMatch(response.body, /top secret/);
   });
 
-  it('releases the file when the client aborts a download', async () => {
+  it('releases the file when the client aborts a download', { skip: !fs.existsSync('/dev/fd') }, async () => {
     const openFiles = () => fs.readdirSync('/dev/fd').length;
     const settled = async (limit) => {
       for (let attempt = 0; attempt < 100 && openFiles() > limit; attempt += 1) {
@@ -146,6 +146,27 @@ describe('static server', () => {
       await abort();
     }
     assert.ok((await settled(before + 3)) <= before + 3);
+  });
+
+  it('answers 404 while the build directory is missing and recovers once it exists', async () => {
+    const late = path.join(base, 'late');
+    const lateServer = createServer(createHandler(late));
+    await new Promise((resolve) => lateServer.listen(0, resolve));
+    const latePort = lateServer.address().port;
+    try {
+      assert.equal((await call('GET', '/', latePort)).status, 404);
+      assert.equal((await call('GET', '/healthz', latePort)).status, 200);
+      fs.mkdirSync(late);
+      fs.writeFileSync(path.join(late, 'index.html'), '<title>late</title>');
+      const recovered = await call('GET', '/', latePort);
+      assert.equal(recovered.status, 200);
+      assert.match(recovered.body, /<title>late<\/title>/);
+    } finally {
+      await new Promise((resolve) => {
+        lateServer.close(resolve);
+        lateServer.closeAllConnections();
+      });
+    }
   });
 
   it('rejects a malformed path with 400', async () => {
