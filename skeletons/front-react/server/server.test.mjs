@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { createServer, request } from 'node:http';
+import { createServer, get, request } from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { after, before, describe, it } from 'node:test';
@@ -29,7 +29,11 @@ describe('static server', () => {
     fs.writeFileSync(path.join(dist, 'index.html'), '<!doctype html><title>app</title>');
     fs.writeFileSync(path.join(dist, 'assets', 'app.abc123.js'), 'console.log(1);');
     fs.writeFileSync(path.join(dist, 'robots.txt'), 'User-agent: *');
+    fs.writeFileSync(path.join(dist, 'module.mjs'), 'export {};');
+    fs.writeFileSync(path.join(dist, 'engine.wasm'), Buffer.from([0, 97, 115, 109]));
+    fs.writeFileSync(path.join(dist, 'assets', 'big.js'), Buffer.alloc(32 * 1024 * 1024, 97));
     fs.writeFileSync(path.join(base, 'secret.txt'), 'top secret');
+    fs.symlinkSync(path.join(base, 'secret.txt'), path.join(dist, 'leak.txt'));
     server = createServer(createHandler(dist));
     await new Promise((resolve) => server.listen(0, resolve));
     port = server.address().port;
@@ -72,6 +76,11 @@ describe('static server', () => {
     assert.equal(response.body, 'User-agent: *');
   });
 
+  it('serves modules and wasm with a type the browser accepts', async () => {
+    assert.match((await call('GET', '/module.mjs')).headers['content-type'], /^text\/javascript/);
+    assert.equal((await call('GET', '/engine.wasm')).headers['content-type'], 'application/wasm');
+  });
+
   it('returns 404 for a missing file with an extension', async () => {
     assert.equal((await call('GET', '/missing.js')).status, 404);
   });
@@ -105,6 +114,38 @@ describe('static server', () => {
       assert.notEqual(response.status, 200, target);
       assert.doesNotMatch(response.body, /top secret|root:/, target);
     }
+  });
+
+  it('does not follow a symbolic link out of the build directory', async () => {
+    const response = await call('GET', '/leak.txt');
+    assert.equal(response.status, 404);
+    assert.doesNotMatch(response.body, /top secret/);
+  });
+
+  it('releases the file when the client aborts a download', async () => {
+    const openFiles = () => fs.readdirSync('/dev/fd').length;
+    const settled = async (limit) => {
+      for (let attempt = 0; attempt < 100 && openFiles() > limit; attempt += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      return openFiles();
+    };
+    const abort = () =>
+      new Promise((resolve) => {
+        const req = get({ port, path: '/assets/big.js' }, (res) => {
+          res.once('data', () => {
+            req.destroy();
+            resolve();
+          });
+        });
+        req.on('error', () => {});
+      });
+
+    const before = openFiles();
+    for (let index = 0; index < 20; index += 1) {
+      await abort();
+    }
+    assert.ok((await settled(before + 3)) <= before + 3);
   });
 
   it('rejects a malformed path with 400', async () => {
