@@ -19,7 +19,7 @@ check_python() {
 
 scan() {
   trivy fs --quiet --skip-dirs .venv --scanners vuln,secret --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 .
-  uvx --python 3.13 semgrep scan --config p/default --error --quiet --metrics=off --no-git-ignore --exclude .venv .
+  uvx --python 3.13 semgrep@1.185.0 scan --config p/default --error --quiet --metrics=off --no-git-ignore --exclude .venv .
 }
 
 for fixture in tests/fixtures/*.json; do
@@ -42,6 +42,8 @@ for app in out/*/app; do
     hadolint Dockerfile
     if [ "${RUN_SCANS:-}" = true ]; then
       scan
+    else
+      echo "scans skipped: set RUN_SCANS=true to run trivy and semgrep"
     fi
   )
 done
