@@ -30,6 +30,7 @@ describe('render', () => {
     write(path.join(first, 'plain.txt'), 'plain ${{ values.n }}');
     write(path.join(first, 'run.sh'), 'echo ${{ values.n }}\n');
     fs.chmodSync(path.join(first, 'run.sh'), 0o755);
+    fs.symlinkSync('plain.txt', path.join(first, 'link.txt'));
     write(path.join(first, '${{ values.empty }}', 'dropped.txt'), 'dropped');
     fs.writeFileSync(path.join(first, 'with-nul.bin'), withNul);
     fs.writeFileSync(path.join(first, 'without-nul.bin'), withoutNul);
@@ -86,7 +87,11 @@ describe('render', () => {
   });
 
   it('keeps the file mode', () => {
-    assert.equal(fs.statSync(out('run.sh')).mode & 0o777, 0o755);
+    assert.equal(fs.statSync(out('run.sh')).mode & 0o777, 0o755 & ~process.umask());
+  });
+
+  it('copies a symbolic link as a link with the same target', () => {
+    assert.equal(fs.readlinkSync(out('link.txt')), 'plain.txt');
   });
 
   it('drops entries whose rendered path is empty', () => {

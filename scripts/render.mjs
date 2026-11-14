@@ -52,7 +52,11 @@ const containsSkippedContent = (rendered) =>
 const copyEntry = (source, target, untouched, values) => {
   fs.mkdirSync(path.dirname(target), { recursive: true });
   const stats = fs.lstatSync(source);
-  if (stats.isSymbolicLink() || isBinaryFileSync(source)) {
+  if (stats.isSymbolicLink()) {
+    fs.symlinkSync(fs.readlinkSync(source), target);
+    return;
+  }
+  if (isBinaryFileSync(source)) {
     fs.cpSync(source, target);
     return;
   }
