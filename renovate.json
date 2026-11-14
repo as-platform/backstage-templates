@@ -19,6 +19,20 @@
         "@backstage/**"
       ],
       "groupName": "backstage"
+    },
+    {
+      "description": "Stay on the globby major used by the Backstage scaffolder",
+      "matchPackageNames": [
+        "globby"
+      ],
+      "allowedVersions": "<12"
+    },
+    {
+      "description": "Stay on the isbinaryfile major used by the Backstage scaffolder",
+      "matchPackageNames": [
+        "isbinaryfile"
+      ],
+      "allowedVersions": "<6"
     }
   ]
 }

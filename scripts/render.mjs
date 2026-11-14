@@ -1,6 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import globby from 'globby';
+import { isBinaryFileSync } from 'isbinaryfile';
 import nunjucks from 'nunjucks';
 import YAML from 'yaml';
 
@@ -42,51 +44,42 @@ const withDefaults = (template, parameters) => {
   return { ...defaults, ...parameters };
 };
 
-const escapeRegExp = (text) => text.replace(/[|\\{}()[\]^$+.]/g, '\\$&');
+const listing = { dot: true, onlyFiles: false, markDirectories: true, followSymbolicLinks: false };
 
-const globToRegExp = (glob) => {
-  const source = glob
-    .split('**')
-    .map((part) =>
-      part
-        .split('*')
-        .map((piece) => escapeRegExp(piece).replace(/\?/g, '[^/]'))
-        .join('[^/]*'),
-    )
-    .join('.*');
-  return new RegExp(`^${source}$`);
+const containsSkippedContent = (rendered) =>
+  rendered === '' || rendered.startsWith('/') || rendered.includes('//');
+
+const copyEntry = (source, target, untouched, values) => {
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  const stats = fs.lstatSync(source);
+  if (stats.isSymbolicLink() || isBinaryFileSync(source)) {
+    fs.cpSync(source, target);
+    return;
+  }
+  const content = fs.readFileSync(source, 'utf8');
+  fs.writeFileSync(target, untouched ? content : environment.renderString(content, { values }), {
+    mode: stats.mode,
+  });
 };
 
-const untouchedMatcher = (globs) => {
-  const patterns = globs.map(globToRegExp);
-  return (relative) => {
-    const segments = relative.split('/');
-    return segments.some((_, index) => {
-      const prefix = segments.slice(0, index + 1).join('/');
-      return patterns.some((pattern) => pattern.test(prefix));
-    });
-  };
-};
-
-const isBinary = (buffer) => buffer.includes(0);
-
-const renderContent = (buffer, relative, values, untouched) =>
-  isBinary(buffer) || untouched(relative)
-    ? buffer
-    : environment.renderString(buffer.toString('utf8'), { values });
-
-const renderTree = (from, to, values, state, relative = '') => {
+const renderTree = (from, to, values, state) => {
   fs.mkdirSync(to, { recursive: true });
-  for (const entry of fs.readdirSync(from, { withFileTypes: true })) {
-    const source = path.join(from, entry.name);
-    const sourceRelative = path.posix.join(relative, entry.name);
-    const target = path.join(to, environment.renderString(entry.name, { values }));
-    if (entry.isDirectory()) {
-      renderTree(source, target, values, state, sourceRelative);
-    } else if (fs.existsSync(target)) {
-      state.skipped.push(path.relative(state.outDir, target));
+  const untouched = new Set(globby.sync(state.untouchedPatterns, { cwd: from, ...listing }));
+  for (const location of globby.sync('**/*', { cwd: from, ...listing })) {
+    const rendered = environment.renderString(location, { values });
+    if (containsSkippedContent(rendered)) {
+      continue;
+    }
+    const target = path.join(to, rendered);
+    const isDirectory = location.endsWith('/');
+    if (fs.existsSync(target)) {
+      if (!isDirectory) {
+        state.skipped.push(path.relative(state.outDir, target));
+      }
+    } else if (isDirectory) {
+      fs.mkdirSync(target, { recursive: true });
     } else {
-      fs.writeFileSync(target, renderContent(fs.readFileSync(source), sourceRelative, values, state.untouched));
+      copyEntry(path.join(from, location), target, untouched.has(location), values);
     }
   }
 };
@@ -109,7 +102,7 @@ export const renderTemplate = (templateFile, parameters, outDir) => {
     const state = {
       outDir,
       skipped,
-      untouched: untouchedMatcher(step.input.copyWithoutTemplating ?? []),
+      untouchedPatterns: step.input.copyWithoutTemplating ?? [],
     };
     renderTree(path.resolve(base, step.input.url), path.join(outDir, step.input.targetPath), values, state);
     steps.push(step.id);

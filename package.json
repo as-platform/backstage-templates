@@ -13,6 +13,8 @@
   "devDependencies": {
     "@backstage/plugin-scaffolder-common": "2.3.1",
     "ajv": "8.20.0",
+    "globby": "11.1.0",
+    "isbinaryfile": "5.0.7",
     "nunjucks": "3.2.4",
     "yaml": "2.9.1"
   }
