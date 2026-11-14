@@ -4,7 +4,7 @@ import path from 'node:path';
 import { before, describe, it } from 'node:test';
 import { templateEntityV1beta3Validator } from '@backstage/plugin-scaffolder-common';
 import Ajv from 'ajv';
-import { renderFixture } from '../scripts/render.mjs';
+import { renderFixture, root } from '../scripts/render.mjs';
 import {
   conventionalCommit,
   files,
@@ -15,6 +15,19 @@ import {
 } from './helpers.mjs';
 
 const longestName = 'a'.repeat(32);
+
+const unchecked = new Set(['uv.lock', 'go.sum', 'go.mod', 'package-lock.json']);
+const suppression = /noqa|nosec|nosemgrep|type:\s*ignore|eslint-disable|nolint/;
+
+const commentPattern = (base) => {
+  if (base === 'Dockerfile' || /\.(py|toml|ya?ml)$/.test(base) || ['.gitignore', '.dockerignore'].includes(base)) {
+    return /(^|\s)#/m;
+  }
+  if (base.endsWith('.go')) {
+    return /(^|\s)\/\/|\/\*/m;
+  }
+  return null;
+};
 
 const properties = (template) => Object.assign({}, ...template.spec.parameters.map((page) => page.properties));
 
@@ -139,6 +152,23 @@ for (const name of serviceTemplates) {
       }
     });
 
+    it('carries no comments or lint suppressions', () => {
+      for (const { outDir } of rendered) {
+        for (const file of files(outDir)) {
+          const base = path.basename(file);
+          if (unchecked.has(base) || base.endsWith('.md')) {
+            continue;
+          }
+          const text = fs.readFileSync(file, 'utf8');
+          const comment = commentPattern(base);
+          if (comment) {
+            assert.doesNotMatch(text, comment, file);
+          }
+          assert.doesNotMatch(text, suppression, file);
+        }
+      }
+    });
+
     it('leaves no template syntax behind', () => {
       for (const { outDir } of rendered) {
         for (const file of files(outDir)) {
@@ -150,6 +180,13 @@ for (const name of serviceTemplates) {
 }
 
 describe('service templates', () => {
+  it('ship no scanner ignore files', () => {
+    const ignores = files(path.join(root, 'skeletons')).filter((file) =>
+      ['.trivyignore', '.semgrepignore', '.gitleaksignore'].includes(path.basename(file)),
+    );
+    assert.deepEqual(ignores, []);
+  });
+
   it('are all covered by the shared checks', () => {
     const implemented = implementedTemplates().filter((name) => name !== 'monorepo');
     assert.deepEqual(implemented.sort(), [...serviceTemplates].sort());

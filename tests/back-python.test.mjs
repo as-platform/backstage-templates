@@ -5,7 +5,7 @@ import path from 'node:path';
 import { before, describe, it } from 'node:test';
 import YAML from 'yaml';
 import { renderFixture, root } from '../scripts/render.mjs';
-import { bumpImageTag, files, read } from './helpers.mjs';
+import { bumpImageTag, read } from './helpers.mjs';
 
 describe('rendered back-python skeleton', () => {
   let full;
@@ -98,13 +98,5 @@ describe('rendered back-python skeleton', () => {
     const result = YAML.parse(bumped.stdout);
     assert.equal(result.image.tag, 'sha-abc1234');
     assert.deepEqual(result.resources, { limits: { memory: '256Mi' } });
-  });
-
-  it('writes no comments in python code', () => {
-    const sources = files(app).filter((file) => file.endsWith('.py'));
-    assert.ok(sources.length >= 3);
-    for (const file of sources) {
-      assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /^\s*#/m, file);
-    }
   });
 });
