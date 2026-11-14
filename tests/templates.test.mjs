@@ -1,0 +1,125 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { describe, it } from 'node:test';
+import { templateEntityV1beta3Validator } from '@backstage/plugin-scaffolder-common';
+import Ajv from 'ajv';
+import { conventionalCommit, loadTemplate, reservedNames, serviceTemplates } from './helpers.mjs';
+
+const longestName = 'a'.repeat(32);
+
+const properties = (template) => Object.assign({}, ...template.spec.parameters.map((page) => page.properties));
+
+for (const name of serviceTemplates) {
+  const { file, text, template } = loadTemplate(name);
+
+  describe(`${name} template.yaml`, () => {
+    it('is a valid Template.v1beta3 entity', async () => {
+      assert.equal(await templateEntityV1beta3Validator.check(template), true);
+    });
+
+    it('has unique step ids and resolvable references', () => {
+      const ids = template.spec.steps.map((step) => step.id);
+      assert.equal(new Set(ids).size, ids.length);
+      const stepRefs = [...text.matchAll(/steps\['([^']+)'\]/g)].map((match) => match[1]);
+      for (const ref of stepRefs) {
+        assert.ok(ids.includes(ref), `unknown step ${ref}`);
+      }
+      const formFields = Object.keys(properties(template));
+      const parameterRefs = [...text.matchAll(/parameters\.(\w+)/g)].map((match) => match[1]);
+      for (const ref of parameterRefs) {
+        assert.ok(formFields.includes(ref), `unknown parameter ${ref}`);
+      }
+    });
+
+    it('points fetch:template at existing skeletons', () => {
+      const fetches = template.spec.steps.filter((step) => step.action === 'fetch:template');
+      assert.ok(fetches.length > 0);
+      for (const step of fetches) {
+        assert.ok(fs.existsSync(path.resolve(path.dirname(file), step.input.url)), step.input.url);
+      }
+    });
+
+    it('creates private repositories only', () => {
+      const publish = template.spec.steps.find((step) => step.action === 'publish:github');
+      assert.equal(publish.input.repoVisibility, 'private');
+      assert.doesNotMatch(JSON.stringify(template.spec.parameters), /repoVisibility/);
+    });
+
+    it('writes conventional commit subjects without AI attribution', () => {
+      const publish = template.spec.steps.find((step) => step.action === 'publish:github');
+      const pull = template.spec.steps.find((step) => step.action === 'publish:github:pull-request');
+      const subjects = [publish.input.gitCommitMessage, pull.input.commitMessage, pull.input.title];
+      for (const subject of subjects) {
+        const rendered = subject.replaceAll('${{ parameters.name }}', longestName);
+        assert.match(rendered, conventionalCommit);
+        assert.ok(rendered.length <= 72, rendered);
+      }
+      assert.doesNotMatch(text, /co-authored-by|claude|anthropic|generated with/i);
+    });
+
+    it('opens the k3s pull request on a conventional branch from main', () => {
+      const pull = template.spec.steps.find((step) => step.action === 'publish:github:pull-request');
+      assert.match(pull.input.branchName, /^feature\/add-app-\$\{\{ parameters\.name \}\}$/);
+      assert.ok(`feature/add-app-${longestName}`.length <= 50);
+      assert.equal(pull.input.targetBranchName, 'main');
+      assert.equal(pull.input.repoUrl, 'github.com?owner=as-platform&repo=k3s');
+      assert.equal(pull.if, '${{ parameters.deployDev }}');
+    });
+
+    it('limits the owner to existing catalog groups', () => {
+      const owner = properties(template).owner;
+      assert.equal(owner['ui:field'], 'OwnerPicker');
+      assert.equal(owner['ui:options'].allowArbitraryValues, false);
+      assert.equal(owner['ui:options'].catalogFilter.kind, 'Group');
+    });
+
+    it('gives the new repository access to the runner group right after creating it', () => {
+      const publishIndex = template.spec.steps.findIndex((step) => step.action === 'publish:github');
+      const publish = template.spec.steps[publishIndex];
+      const access = template.spec.steps[publishIndex + 1];
+      assert.equal(access?.action, 'github:runner-group:add-repo');
+      assert.equal(access.input.repoUrl, publish.input.repoUrl);
+    });
+  });
+
+  describe(`${name} form`, () => {
+    const page = template.spec.parameters[0];
+    const validate = new Ajv({ strict: false }).compile({
+      type: 'object',
+      required: page.required,
+      properties: page.properties,
+    });
+    const accepts = (value) => validate({ name: value, description: 'x', owner: 'group:default/platform' });
+
+    it('accepts valid service names', () => {
+      for (const value of ['hello-go', 'abc', 'my-service-2', longestName]) {
+        assert.equal(accepts(value), true, value);
+      }
+    });
+
+    it('rejects reserved and malformed service names', () => {
+      const malformed = ['Hello', 'a', 'ab', 'x-', '-ab', '1abc', 'a_b', 'a'.repeat(33), ''];
+      for (const value of [...reservedNames, ...malformed]) {
+        assert.equal(accepts(value), false, JSON.stringify(value));
+      }
+    });
+
+    it('requires name, owner and description', () => {
+      assert.deepEqual([...page.required].sort(), ['description', 'name', 'owner']);
+    });
+
+    it('defaults to deploy to dev', () => {
+      assert.equal(properties(template).deployDev.default, true);
+    });
+  });
+}
+
+describe('service templates', () => {
+  it('share one name schema', () => {
+    const [first, ...rest] = serviceTemplates.map((name) => properties(loadTemplate(name).template).name);
+    for (const schema of rest) {
+      assert.deepEqual(schema, first);
+    }
+  });
+});
