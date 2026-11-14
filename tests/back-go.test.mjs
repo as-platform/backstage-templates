@@ -2,18 +2,25 @@ import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { before, describe, it } from 'node:test';
+import { after, before, describe, it } from 'node:test';
 import YAML from 'yaml';
 import { renderFixture } from '../scripts/render.mjs';
-import { bumpImageTag, exists, read } from './helpers.mjs';
+import { bumpImageTag, exists, read, tempRoot } from './helpers.mjs';
 
 describe('rendered skeleton', () => {
   let full;
   let minimal;
 
+  let outRoot;
+
   before(() => {
-    full = renderFixture('back-go-full');
-    minimal = renderFixture('back-go-minimal');
+    outRoot = tempRoot();
+    full = renderFixture('back-go-full', outRoot);
+    minimal = renderFixture('back-go-minimal', outRoot);
+  });
+
+  after(() => {
+    fs.rmSync(outRoot, { recursive: true, force: true });
   });
 
   it('runs the platform step only with deployDev', () => {

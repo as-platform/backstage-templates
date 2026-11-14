@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { before, describe, it } from 'node:test';
+import { after, before, describe, it } from 'node:test';
 import { templateEntityV1beta3Validator } from '@backstage/plugin-scaffolder-common';
 import Ajv from 'ajv';
 import { renderFixture, root } from '../scripts/render.mjs';
@@ -12,21 +12,38 @@ import {
   loadTemplate,
   reservedNames,
   serviceTemplates,
+  tempRoot,
 } from './helpers.mjs';
 
 const longestName = 'a'.repeat(32);
 
-const unchecked = new Set(['uv.lock', 'go.sum', 'go.mod', 'package-lock.json']);
-const suppression = /noqa|nosec|nosemgrep|type:\s*ignore|eslint-disable|nolint/;
+const withoutComments = new Set([
+  'uv.lock', 'go.sum', 'go.mod', 'package-lock.json', '.python-version', 'renovate.json', 'catalog-info.json',
+]);
+const suppression = /noqa|nosec|nosemgrep|type:\s*ignore|eslint-disable|nolint|@ts-ignore|@ts-expect-error/;
+
+const hashComment = /(^|\s)#/m;
+const slashComment = /(^|\s)\/\/|\/\*/m;
+const blockComment = /\/\*/;
+const markupComment = /<!--/;
 
 const commentPattern = (base) => {
-  if (base === 'Dockerfile' || /\.(py|toml|ya?ml)$/.test(base) || ['.gitignore', '.dockerignore'].includes(base)) {
-    return /(^|\s)#/m;
+  if (withoutComments.has(base) || /\.(json|md)$/.test(base)) {
+    return null;
   }
-  if (base.endsWith('.go')) {
-    return /(^|\s)\/\/|\/\*/m;
+  if (base === 'Dockerfile' || ['.gitignore', '.dockerignore', '.npmrc'].includes(base) || /\.(py|toml|ya?ml)$/.test(base)) {
+    return hashComment;
   }
-  return null;
+  if (/\.(go|ts|tsx|js|mjs|cjs)$/.test(base)) {
+    return slashComment;
+  }
+  if (base.endsWith('.css')) {
+    return blockComment;
+  }
+  if (base.endsWith('.html')) {
+    return markupComment;
+  }
+  throw new Error(`no comment rule for ${base}: add one in templates.test.mjs`);
 };
 
 const properties = (template) => Object.assign({}, ...template.spec.parameters.map((page) => page.properties));
@@ -141,9 +158,15 @@ for (const name of serviceTemplates) {
 for (const name of serviceTemplates) {
   describe(`${name} rendered fixtures`, () => {
     let rendered;
+    let outRoot;
 
     before(() => {
-      rendered = ['full', 'minimal'].map((kind) => renderFixture(`${name}-${kind}`));
+      outRoot = tempRoot();
+      rendered = ['full', 'minimal'].map((kind) => renderFixture(`${name}-${kind}`, outRoot));
+    });
+
+    after(() => {
+      fs.rmSync(outRoot, { recursive: true, force: true });
     });
 
     it('skips no file', () => {
@@ -156,15 +179,15 @@ for (const name of serviceTemplates) {
       for (const { outDir } of rendered) {
         for (const file of files(outDir)) {
           const base = path.basename(file);
-          if (unchecked.has(base) || base.endsWith('.md')) {
-            continue;
-          }
-          const text = fs.readFileSync(file, 'utf8');
           const comment = commentPattern(base);
-          if (comment) {
-            assert.doesNotMatch(text, comment, file);
+          if (comment === null && base !== 'package-lock.json' && !withoutComments.has(base) && !base.endsWith('.md')) {
+            assert.doesNotMatch(fs.readFileSync(file, 'utf8'), suppression, file);
           }
-          assert.doesNotMatch(text, suppression, file);
+          if (comment) {
+            const text = fs.readFileSync(file, 'utf8');
+            assert.doesNotMatch(text, comment, file);
+            assert.doesNotMatch(text, suppression, file);
+          }
         }
       }
     });
@@ -182,7 +205,7 @@ for (const name of serviceTemplates) {
 describe('service templates', () => {
   it('ship no scanner ignore files', () => {
     const ignores = files(path.join(root, 'skeletons')).filter((file) =>
-      ['.trivyignore', '.semgrepignore', '.gitleaksignore'].includes(path.basename(file)),
+      ['.trivyignore', '.trivyignore.yaml', '.semgrepignore', '.gitleaksignore', '.hadolint.yaml', '.hadolint.yml'].includes(path.basename(file)),
     );
     assert.deepEqual(ignores, []);
   });

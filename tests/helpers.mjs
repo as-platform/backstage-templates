@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import YAML from 'yaml';
 import { root } from '../scripts/render.mjs';
@@ -25,6 +26,8 @@ export const bumpImageTag = String.raw`
   { print }
   END { if (!done) exit 3 }
 `;
+
+export const tempRoot = () => fs.mkdtempSync(path.join(os.tmpdir(), 'rendered-'));
 
 export const read = (...parts) => fs.readFileSync(path.join(...parts), 'utf8');
 

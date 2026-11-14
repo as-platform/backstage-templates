@@ -114,10 +114,10 @@ export const renderTemplate = (templateFile, parameters, outDir) => {
   return { steps, skipped };
 };
 
-export const renderFixture = (name) => {
+export const renderFixture = (name, outRoot = path.join(root, 'out')) => {
   const fixture = JSON.parse(fs.readFileSync(path.join(root, 'tests', 'fixtures', `${name}.json`), 'utf8'));
   const templateFile = path.join(root, 'scaffolder', fixture.template, 'template.yaml');
-  const outDir = path.join(root, 'out', name);
+  const outDir = path.join(outRoot, name);
   const { steps, skipped } = renderTemplate(templateFile, fixture.parameters, outDir);
   return { outDir, steps, skipped };
 };
