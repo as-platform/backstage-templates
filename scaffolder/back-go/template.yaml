@@ -70,6 +70,16 @@ spec:
           owner: ${{ parameters.owner }}
           description: ${{ parameters.description }}
           deployDev: ${{ parameters.deployDev }}
+    - id: fetch-ci
+      name: Render CI configuration
+      action: fetch:template
+      input:
+        url: ../../skeletons/_shared/ci
+        targetPath: ./app
+        values:
+          name: ${{ parameters.name }}
+          deployDev: ${{ parameters.deployDev }}
+          language: go
     - id: publish-repo
       name: Create repository
       action: publish:github

@@ -146,8 +146,10 @@ describe('rendered skeleton', () => {
   });
 
   it('runs the platform step only with deployDev', () => {
-    assert.deepEqual(full.steps, ['fetch-app', 'fetch-platform']);
-    assert.deepEqual(minimal.steps, ['fetch-app']);
+    assert.deepEqual(full.steps, ['fetch-app', 'fetch-ci', 'fetch-platform']);
+    assert.deepEqual(minimal.steps, ['fetch-app', 'fetch-ci']);
+    assert.deepEqual(full.skipped, []);
+    assert.deepEqual(minimal.skipped, []);
     assert.ok(exists(full.outDir, 'platform', 'apps', 'hello-go', 'values.yaml'));
     assert.equal(exists(minimal.outDir, 'platform'), false);
   });

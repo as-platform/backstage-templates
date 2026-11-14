@@ -4,28 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { after, before, describe, it } from 'node:test';
 import { renderTemplate } from '../scripts/render.mjs';
-
-const write = (file, content) => {
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, content);
-};
-
-const template = (steps) =>
-  [
-    'spec:',
-    '  parameters: []',
-    '  steps:',
-    ...steps.flatMap((step) => [
-      `    - id: ${step.id}`,
-      '      action: fetch:template',
-      '      input:',
-      `        url: ${step.url}`,
-      '        targetPath: ./app',
-      '        values:',
-      '          n: demo',
-      ...(step.untouched ? ['        copyWithoutTemplating:', ...step.untouched.map((glob) => `          - '${glob}'`)] : []),
-    ]),
-  ].join('\n');
+import { templateYaml, write } from './helpers.mjs';
 
 describe('render', () => {
   let dir;
@@ -43,9 +22,9 @@ describe('render', () => {
     write(path.join(dir, 'second', 'b.txt'), 'b ${{ values.n }}');
     write(
       path.join(dir, 'template.yaml'),
-      template([
-        { id: 'one', url: './first', untouched: ['*.lock', 'locks/**'] },
-        { id: 'two', url: './second' },
+      templateYaml([
+        { id: 'one', url: './first', values: { n: 'demo' }, untouched: ['*.lock', 'locks/**'] },
+        { id: 'two', url: './second', values: { n: 'demo' } },
       ]),
     );
     result = renderTemplate(path.join(dir, 'template.yaml'), {}, path.join(dir, 'out'));

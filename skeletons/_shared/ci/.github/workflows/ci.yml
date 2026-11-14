@@ -16,15 +16,19 @@ concurrency:
   cancel-in-progress: {% raw %}${{ github.event_name == 'pull_request' }}{% endraw %}
 
 jobs:
-  go:
-    uses: as-platform/ci-templates/.github/workflows/go-ci.yml@main
+  ${{ values.language }}:
+    uses: as-platform/ci-templates/.github/workflows/${{ values.language }}-ci.yml@main
+{%- if values.language == 'python' %}
+    with:
+      python-version: "3.13"
+{%- endif %}
 
   security:
     uses: as-platform/ci-templates/.github/workflows/security.yml@main
 
   image:
     needs:
-      - go
+      - ${{ values.language }}
       - security
     uses: as-platform/ci-templates/.github/workflows/image-build.yml@main
     with:
