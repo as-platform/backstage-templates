@@ -39,6 +39,11 @@ spec:
               - storage
               - default
               - podinfo
+              - root
+              - openbao
+              - tailscale
+              - apps
+              - infra
           ui:autofocus: true
         description:
           title: Description

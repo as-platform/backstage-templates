@@ -68,6 +68,8 @@ First deploy:
 3. Merge the pull request. The Application is `Degraded` (`ImagePullBackOff` on the placeholder tag `bootstrap`) until the next step.
 4. Re-run the `deploy` job: it commits the real tag, Argo CD syncs, and the service answers on `https://<name>.homelab`. Add `<name>.homelab` to `/etc/hosts` next to the other `*.homelab` entries.
 
+After deleting a service repository, remove `apps/<name>` from `k3s` too: a stale directory is silently overwritten by the pull request of a new service with the same name.
+
 ## Not done yet
 
 - The dry run of the template, and a custom action that sets the repository secrets: the portal does not hold the registry password or the signing key, so they stay a manual step.

@@ -8,6 +8,7 @@ export const serviceTemplates = ['back-go'];
 export const reservedNames = [
   'argocd', 'sealed-secrets', 'metallb', 'traefik', 'cert-manager', 'zot', 'keda', 'github-runner',
   'monitoring', 'backstage', 'postgres', 'kyverno', 'storage', 'default', 'podinfo', 'kube-system',
+  'root', 'openbao', 'tailscale', 'apps', 'infra',
 ];
 
 export const conventionalCommit = /^(feat|fix|refactor|perf|docs|test|build|ci|chore|revert)(\([a-z0-9-]+\))?!?: [a-z].*[^.]$/;
