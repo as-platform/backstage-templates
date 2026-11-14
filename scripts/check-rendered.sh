@@ -17,9 +17,17 @@ check_python() {
   uv run pytest
 }
 
+check_node() {
+  npm ci
+  npm run lint
+  npm run typecheck
+  npm test
+  npm run build
+}
+
 scan() {
-  trivy fs --quiet --skip-dirs .venv --scanners vuln,secret --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 .
-  uvx --python 3.13 semgrep@1.185.0 scan --config p/default --error --quiet --metrics=off --no-git-ignore --exclude .venv .
+  trivy fs --quiet --skip-dirs .venv --skip-dirs node_modules --scanners vuln,secret --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 .
+  uvx --python 3.13 semgrep@1.185.0 scan --config p/default --error --quiet --metrics=off --no-git-ignore --exclude .venv --exclude node_modules .
 }
 
 for fixture in tests/fixtures/*.json; do
@@ -34,6 +42,8 @@ for app in out/*/app; do
       check_go
     elif [ -f pyproject.toml ]; then
       check_python
+    elif [ -f package.json ]; then
+      check_node
     else
       echo "no known project file in $app" >&2
       exit 1
