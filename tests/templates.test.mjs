@@ -23,7 +23,7 @@ const withoutComments = new Set([
 const suppression = /noqa|nosec|nosemgrep|type:\s*ignore|eslint-disable|nolint|@ts-ignore|@ts-expect-error/;
 
 const hashComment = /(^|\s)#/m;
-const iniComment = /^\s*[;#]/m;
+const iniComment = /(^|\s)[;#]/m;
 const slashComment = /\/\/|\/\*/;
 const blockComment = /\/\*/;
 const markupComment = /<!--/;
