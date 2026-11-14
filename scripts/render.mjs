@@ -42,15 +42,51 @@ const withDefaults = (template, parameters) => {
   return { ...defaults, ...parameters };
 };
 
-const renderTree = (from, to, values) => {
+const escapeRegExp = (text) => text.replace(/[|\\{}()[\]^$+.]/g, '\\$&');
+
+const globToRegExp = (glob) => {
+  const source = glob
+    .split('**')
+    .map((part) =>
+      part
+        .split('*')
+        .map((piece) => escapeRegExp(piece).replace(/\?/g, '[^/]'))
+        .join('[^/]*'),
+    )
+    .join('.*');
+  return new RegExp(`^${source}$`);
+};
+
+const untouchedMatcher = (globs) => {
+  const patterns = globs.map(globToRegExp);
+  return (relative) => {
+    const segments = relative.split('/');
+    return segments.some((_, index) => {
+      const prefix = segments.slice(0, index + 1).join('/');
+      return patterns.some((pattern) => pattern.test(prefix));
+    });
+  };
+};
+
+const isBinary = (buffer) => buffer.includes(0);
+
+const renderContent = (buffer, relative, values, untouched) =>
+  isBinary(buffer) || untouched(relative)
+    ? buffer
+    : environment.renderString(buffer.toString('utf8'), { values });
+
+const renderTree = (from, to, values, state, relative = '') => {
   fs.mkdirSync(to, { recursive: true });
   for (const entry of fs.readdirSync(from, { withFileTypes: true })) {
     const source = path.join(from, entry.name);
+    const sourceRelative = path.posix.join(relative, entry.name);
     const target = path.join(to, environment.renderString(entry.name, { values }));
     if (entry.isDirectory()) {
-      renderTree(source, target, values);
+      renderTree(source, target, values, state, sourceRelative);
+    } else if (fs.existsSync(target)) {
+      state.skipped.push(path.relative(state.outDir, target));
     } else {
-      fs.writeFileSync(target, environment.renderString(fs.readFileSync(source, 'utf8'), { values }));
+      fs.writeFileSync(target, renderContent(fs.readFileSync(source), sourceRelative, values, state.untouched));
     }
   }
 };
@@ -59,7 +95,8 @@ export const renderTemplate = (templateFile, parameters, outDir) => {
   const template = YAML.parse(fs.readFileSync(templateFile, 'utf8'));
   const context = { parameters: withDefaults(template, parameters) };
   const base = path.dirname(templateFile);
-  const executed = [];
+  const steps = [];
+  const skipped = [];
   fs.rmSync(outDir, { recursive: true, force: true });
   for (const step of template.spec.steps) {
     if (step.action !== 'fetch:template') {
@@ -69,18 +106,23 @@ export const renderTemplate = (templateFile, parameters, outDir) => {
       continue;
     }
     const values = resolve(step.input.values, context);
-    renderTree(path.resolve(base, step.input.url), path.join(outDir, step.input.targetPath), values);
-    executed.push(step.id);
+    const state = {
+      outDir,
+      skipped,
+      untouched: untouchedMatcher(step.input.copyWithoutTemplating ?? []),
+    };
+    renderTree(path.resolve(base, step.input.url), path.join(outDir, step.input.targetPath), values, state);
+    steps.push(step.id);
   }
-  return executed;
+  return { steps, skipped };
 };
 
 export const renderFixture = (name) => {
   const fixture = JSON.parse(fs.readFileSync(path.join(root, 'tests', 'fixtures', `${name}.json`), 'utf8'));
   const templateFile = path.join(root, 'scaffolder', fixture.template, 'template.yaml');
   const outDir = path.join(root, 'out', name);
-  const steps = renderTemplate(templateFile, fixture.parameters, outDir);
-  return { outDir, steps };
+  const { steps, skipped } = renderTemplate(templateFile, fixture.parameters, outDir);
+  return { outDir, steps, skipped };
 };
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
@@ -90,7 +132,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     process.exit(2);
   }
   for (const name of names) {
-    const { outDir, steps } = renderFixture(name);
+    const { outDir, steps, skipped } = renderFixture(name);
     console.log(`${name}: ${steps.join(', ')} -> ${path.relative(root, outDir)}`);
+    for (const file of skipped) {
+      console.log(`  skipped existing: ${file}`);
+    }
   }
 }
