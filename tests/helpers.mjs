@@ -3,7 +3,7 @@ import path from 'node:path';
 import YAML from 'yaml';
 import { root } from '../scripts/render.mjs';
 
-export const serviceTemplates = ['back-go'];
+export const serviceTemplates = ['back-go', 'back-python'];
 
 export const implementedTemplates = () =>
   fs

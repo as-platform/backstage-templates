@@ -1,0 +1,9 @@
+{
+  "template": "back-python",
+  "parameters": {
+    "name": "hello-py",
+    "owner": "group:default/platform",
+    "description": "Hello: world",
+    "deployDev": true
+  }
+}

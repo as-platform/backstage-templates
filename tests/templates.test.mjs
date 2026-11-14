@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { describe, it } from 'node:test';
+import { before, describe, it } from 'node:test';
 import { templateEntityV1beta3Validator } from '@backstage/plugin-scaffolder-common';
 import Ajv from 'ajv';
+import { renderFixture } from '../scripts/render.mjs';
 import {
   conventionalCommit,
+  files,
   implementedTemplates,
   loadTemplate,
   reservedNames,
@@ -119,6 +121,30 @@ for (const name of serviceTemplates) {
       const deploy = template.spec.parameters[1].properties;
       assert.deepEqual(Object.keys(deploy), ['deployDev']);
       assert.equal(deploy.deployDev.default, true);
+    });
+  });
+}
+
+for (const name of serviceTemplates) {
+  describe(`${name} rendered fixtures`, () => {
+    let rendered;
+
+    before(() => {
+      rendered = ['full', 'minimal'].map((kind) => renderFixture(`${name}-${kind}`));
+    });
+
+    it('skips no file', () => {
+      for (const { skipped } of rendered) {
+        assert.deepEqual(skipped, []);
+      }
+    });
+
+    it('leaves no template syntax behind', () => {
+      for (const { outDir } of rendered) {
+        for (const file of files(outDir)) {
+          assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /\$\{\{\s*(values|parameters)\.|\{%|\{#/, file);
+        }
+      }
     });
   });
 }

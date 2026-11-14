@@ -1,0 +1,9 @@
+{
+  "template": "back-python",
+  "parameters": {
+    "name": "plain-py",
+    "owner": "group:default/platform",
+    "description": "Minimal service",
+    "deployDev": false
+  }
+}

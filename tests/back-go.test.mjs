@@ -5,7 +5,7 @@ import path from 'node:path';
 import { before, describe, it } from 'node:test';
 import YAML from 'yaml';
 import { renderFixture } from '../scripts/render.mjs';
-import { bumpImageTag, exists, files, read } from './helpers.mjs';
+import { bumpImageTag, exists, read } from './helpers.mjs';
 
 describe('rendered skeleton', () => {
   let full;
@@ -19,18 +19,8 @@ describe('rendered skeleton', () => {
   it('runs the platform step only with deployDev', () => {
     assert.deepEqual(full.steps, ['fetch-app', 'fetch-ci', 'fetch-platform']);
     assert.deepEqual(minimal.steps, ['fetch-app', 'fetch-ci']);
-    assert.deepEqual(full.skipped, []);
-    assert.deepEqual(minimal.skipped, []);
     assert.ok(exists(full.outDir, 'platform', 'apps', 'hello-go', 'values.yaml'));
     assert.equal(exists(minimal.outDir, 'platform'), false);
-  });
-
-  it('leaves no template syntax behind', () => {
-    for (const { outDir } of [full, minimal]) {
-      for (const file of files(outDir)) {
-        assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /\$\{\{\s*(values|parameters)\.|\{%|\{#/, file);
-      }
-    }
   });
 
   it('renders the service name into code and metadata', () => {
