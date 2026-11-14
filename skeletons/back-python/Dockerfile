@@ -10,7 +10,8 @@ COPY --chown=app:app pyproject.toml uv.lock ./
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN uv export --frozen --no-dev --no-emit-project \
- | uv pip install --target /home/app/site --no-deps -r -
+ | uv pip install --compile-bytecode --target /home/app/site --no-deps -r - \
+ && rm -rf /home/app/site/bin /home/app/site/.lock
 
 COPY --chown=app:app app ./app
 
