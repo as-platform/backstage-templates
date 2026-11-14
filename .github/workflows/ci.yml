@@ -7,6 +7,8 @@ on:
   pull_request:
     branches:
       - main
+  schedule:
+    - cron: "0 6 * * 1"
 
 permissions:
   contents: read
@@ -25,6 +27,8 @@ jobs:
       ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
       HADOLINT_VERSION: 2.15.1
       HADOLINT_SHA256: c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507
+      TRIVY_VERSION: 0.76.2
+      TRIVY_SHA256: bc0fc726e017b8927a62b2d3531d7a84ee01769daf5c99ed866dced54089fdbf
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -37,6 +41,12 @@ jobs:
         with:
           go-version-file: skeletons/back-go/go.mod
           cache: false
+
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: 0.13.7
+          python-version: "3.13"
+          enable-cache: false
 
       - name: Install tools
         run: |
@@ -59,6 +69,11 @@ jobs:
             "https://github.com/hadolint/hadolint/releases/download/v${HADOLINT_VERSION}/hadolint-linux-x86_64"
           echo "${HADOLINT_SHA256}  $bin/hadolint" | sha256sum -c -
           chmod +x "$bin/hadolint"
+
+          curl -fsSL -o "$RUNNER_TEMP/trivy.tar.gz" \
+            "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          echo "${TRIVY_SHA256}  $RUNNER_TEMP/trivy.tar.gz" | sha256sum -c -
+          tar -xzf "$RUNNER_TEMP/trivy.tar.gz" -C "$bin" trivy
 
           echo "$bin" >> "$GITHUB_PATH"
 
