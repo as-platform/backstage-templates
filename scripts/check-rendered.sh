@@ -11,18 +11,15 @@ check_go() {
 }
 
 check_python() {
-  uv sync --frozen
+  uv sync --locked
   uv run ruff check .
   uv run ruff format --check .
   uv run pytest
 }
 
 scan() {
-  if command -v trivy >/dev/null 2>&1; then
-    trivy fs --quiet --skip-dirs .venv --scanners vuln,secret --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 .
-  else
-    echo "trivy not found, skipping the vulnerability scan"
-  fi
+  trivy fs --quiet --skip-dirs .venv --scanners vuln,secret --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 .
+  uvx --python 3.13 semgrep scan --config p/default --error --quiet --metrics=off --no-git-ignore --exclude .venv .
 }
 
 for fixture in tests/fixtures/*.json; do
@@ -43,6 +40,8 @@ for app in out/*/app; do
     fi
     actionlint .github/workflows/*.yml
     hadolint Dockerfile
-    scan
+    if [ "${RUN_SCANS:-}" = true ]; then
+      scan
+    fi
   )
 done

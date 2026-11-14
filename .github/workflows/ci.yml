@@ -9,12 +9,13 @@ on:
       - main
   schedule:
     - cron: "0 6 * * 1"
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -82,3 +83,5 @@ jobs:
       - run: npm test
 
       - run: npm run check:rendered
+        env:
+          RUN_SCANS: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
