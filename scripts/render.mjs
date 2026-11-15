@@ -108,7 +108,9 @@ export const renderTemplate = (templateFile, parameters, outDir) => {
       skipped,
       untouchedPatterns: step.input.copyWithoutTemplating ?? [],
     };
-    renderTree(path.resolve(base, step.input.url), path.join(outDir, step.input.targetPath), values, state);
+    const url = resolve(step.input.url, context);
+    const targetPath = resolve(step.input.targetPath, context);
+    renderTree(path.resolve(base, url), path.join(outDir, targetPath), values, state);
     steps.push(step.id);
   }
   return { steps, skipped };
