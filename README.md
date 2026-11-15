@@ -4,8 +4,6 @@
 
 Backstage scaffolder templates and repository skeletons for the [as-platform](https://github.com/as-platform) homelab platform, with CI/CD and security wired in.
 
-> **Status: four templates, all run from the portal.** `back-go` was run from the [`backstage`](https://github.com/as-platform/backstage) portal on 2026-11-09 with the deploy option on and off. `back-python`, `front-react` and `monorepo` were run from the portal on 2026-11-15 with the deploy option on: each created a private repository, got a green CI with signed images in the registry, a bump of the image tag in `k3s`, an Application `Synced`/`Healthy` and an answer over HTTPS. For `monorepo` the selective build was checked too in three pushes: a change only in `services/web` built and deployed only the frontend, a change only in `services/api` only the API, a change only in a Markdown file nothing. **Not checked:** `back-go` after its CI moved to `skeletons/_shared/ci` (the rendered output is byte for byte the same and the shared file is exercised by the other templates, but the template itself was not run again), `monorepo` with a Python API (rendered and checked only), and the dry run of any template.
-
 ## Layout
 
 ```text
@@ -45,7 +43,7 @@ Postponed: the `as-skill` harness option in the form.
 
 ## Checks
 
-```text
+```bash
 npm ci
 npm test                  # schema, form rules, rendered output of eight fixtures
 npm run render -- back-go-full
@@ -53,7 +51,9 @@ npm run check:rendered    # lint, tests, build, actionlint, hadolint on every re
 RUN_SCANS=true npm run check:rendered   # adds trivy and semgrep
 ```
 
-`check:rendered` renders every fixture and runs the checks of its language: `gofmt`, `go vet`, `go test -race` and `golangci-lint` for Go, `uv sync --locked`, `ruff` and `pytest` for Python, `npm ci`, lint, typecheck, tests and build for Node. Every Dockerfile goes through `hadolint`, every workflow through `actionlint`. It needs `go`, `golangci-lint`, `uv`, `node`, `actionlint` and `hadolint` on `PATH`, plus `trivy` and `uvx` for the scans. The CI of this repository runs it on a GitHub-hosted runner; the scans run there every Monday and on manual dispatch, so a new vulnerability in a lock file shows up as a red weekly run, not as a red push. `golangci-lint`, `actionlint`, `hadolint` and `trivy` are pinned by version and sha256 in `.github/workflows/ci.yml`, `uv` by version there, `semgrep` by version in `scripts/check-rendered.sh`; all of them are bumped by hand; Renovate handles the actions and the npm packages but ignores `skeletons/**`, so the lock files of the skeletons (`uv.lock`, `package-lock.json`) are refreshed by hand too. The image tag bump test keeps a copy of the `awk` script from `ci-templates/actions/bump-image-tag`; change both together.
+`check:rendered` renders every fixture and runs the checks of its language (Go, Python, Node), `hadolint` on every Dockerfile and `actionlint` on every workflow. It needs `go`, `golangci-lint`, `uv`, `node`, `actionlint` and `hadolint` on `PATH`, plus `trivy` and `uvx` for the scans. The CI of this repository runs it on a GitHub-hosted runner; the scans run every Monday and on manual dispatch.
+
+The versions of `golangci-lint`, `actionlint`, `hadolint`, `trivy` (with sha256), `uv` and `semgrep` are pinned in `.github/workflows/ci.yml` and `scripts/check-rendered.sh` and bumped by hand. Renovate ignores `skeletons/**`, so the lock files of the skeletons (`uv.lock`, `package-lock.json`) are refreshed by hand too. The image tag bump test keeps a copy of the `awk` script from `ci-templates/actions/bump-image-tag`; change both together.
 
 The tests also reject comments and lint suppressions in the rendered files, scanner ignore files in the skeletons and any file skipped because an earlier step already wrote it. `scripts/render.mjs` mirrors `fetch:template` of the portal (skipping existing files, `copyWithoutTemplating`, binary files, file modes).
 
@@ -61,7 +61,7 @@ The tests also reject comments and lint suppressions in the rendered files, scan
 
 The new repository needs its own variable and secrets: organization-level ones are not available to private repositories on the Free plan. The variable `ZOT_REGISTRY` is set by the template.
 
-```text
+```bash
 gh variable set ZOT_REGISTRY --body zot.homelab -R as-platform/<name>
 gh secret set ZOT_USER -R as-platform/<name>
 gh secret set ZOT_PASSWORD -R as-platform/<name>

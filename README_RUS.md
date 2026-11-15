@@ -4,8 +4,6 @@
 
 Шаблоны scaffolder Backstage и скелеты репозиториев для домашней платформы [as-platform](https://github.com/as-platform) с подключёнными CI/CD и security.
 
-> **Статус: четыре шаблона, все запущены из портала.** `back-go` запущен из портала [`backstage`](https://github.com/as-platform/backstage) 2026-11-09 с включённой и выключенной опцией деплоя. `back-python`, `front-react` и `monorepo` запущены из портала 2026-11-15 с включённым деплоем: каждый создал приватный репозиторий, дал зелёный CI с подписанными образами в реестре, смену тега образа в `k3s`, Application `Synced`/`Healthy` и ответ по HTTPS. У `monorepo` проверена и выборочная сборка тремя push'ами: правка только в `services/web` собрала и выкатила только фронтенд, правка только в `services/api` только API, правка только в Markdown-файле ничего. **Не проверено:** `back-go` после переноса его CI в `skeletons/_shared/ci` (вывод рендера побайтно прежний и общий файл проверен другими шаблонами, но сам шаблон заново не запускался), `monorepo` с API на Python (только рендер и проверки) и dry run любого шаблона.
-
 ## Структура
 
 ```text
@@ -45,7 +43,7 @@
 
 ## Проверки
 
-```text
+```bash
 npm ci
 npm test                  # схема, правила формы, результат рендера восьми фикстур
 npm run render -- back-go-full
@@ -53,7 +51,9 @@ npm run check:rendered    # lint, тесты, сборка, actionlint, hadolint
 RUN_SCANS=true npm run check:rendered   # плюс trivy и semgrep
 ```
 
-`check:rendered` рендерит каждую фикстуру и запускает проверки её языка: `gofmt`, `go vet`, `go test -race` и `golangci-lint` для Go, `uv sync --locked`, `ruff` и `pytest` для Python, `npm ci`, lint, typecheck, тесты и сборку для Node. Каждый Dockerfile проходит `hadolint`, каждый workflow — `actionlint`. Нужны `go`, `golangci-lint`, `uv`, `node`, `actionlint` и `hadolint` в `PATH`, а для сканов ещё `trivy` и `uvx`. CI этого репозитория гоняет это на GitHub-hosted раннере; сканы идут там по понедельникам и по ручному запуску, поэтому новая уязвимость в lock-файле видна как красный недельный прогон, а не как красный push. `golangci-lint`, `actionlint`, `hadolint` и `trivy` закреплены по версии и sha256 в `.github/workflows/ci.yml`, `uv` по версии там же, `semgrep` по версии в `scripts/check-rendered.sh`; все они обновляются вручную; actions и npm-пакеты обновляет Renovate, но `skeletons/**` он игнорирует, поэтому lock-файлы скелетов (`uv.lock`, `package-lock.json`) тоже обновляются вручную. Тест смены тега образа хранит копию скрипта `awk` из `ci-templates/actions/bump-image-tag`; менять их нужно вместе.
+`check:rendered` рендерит каждую фикстуру и гоняет проверки её языка (Go, Python, Node), `hadolint` по каждому Dockerfile и `actionlint` по каждому workflow. Нужны `go`, `golangci-lint`, `uv`, `node`, `actionlint` и `hadolint` в `PATH`, для сканов ещё `trivy` и `uvx`. CI репозитория гоняет это на GitHub-hosted раннере, сканы идут по понедельникам и по ручному запуску.
+
+Версии `golangci-lint`, `actionlint`, `hadolint`, `trivy` (с sha256), `uv` и `semgrep` закреплены в `.github/workflows/ci.yml` и `scripts/check-rendered.sh` и обновляются вручную. Renovate игнорирует `skeletons/**`, поэтому lock-файлы скелетов (`uv.lock`, `package-lock.json`) тоже обновляются вручную. Тест смены тега образа хранит копию скрипта `awk` из `ci-templates/actions/bump-image-tag`; менять их нужно вместе.
 
 Тесты также отвергают комментарии и подавление линтеров в отрендеренных файлах, файлы-игноры сканеров в скелетах и любой файл, пропущенный из-за того, что его уже записал предыдущий шаг. `scripts/render.mjs` повторяет поведение `fetch:template` портала (пропуск существующих файлов, `copyWithoutTemplating`, бинарные файлы, права файлов).
 
@@ -61,7 +61,7 @@ RUN_SCANS=true npm run check:rendered   # плюс trivy и semgrep
 
 Новому репозиторию нужны свои переменная и секреты: секреты и переменные уровня организации приватным репозиториям на плане Free недоступны. Переменную `ZOT_REGISTRY` шаблон ставит сам.
 
-```text
+```bash
 gh variable set ZOT_REGISTRY --body zot.homelab -R as-platform/<имя>
 gh secret set ZOT_USER -R as-platform/<имя>
 gh secret set ZOT_PASSWORD -R as-platform/<имя>
