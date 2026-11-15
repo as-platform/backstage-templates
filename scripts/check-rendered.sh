@@ -25,8 +25,21 @@ check_node() {
   npm run build
 }
 
+check_project() {
+  if [ -f go.mod ]; then
+    check_go
+  elif [ -f pyproject.toml ]; then
+    check_python
+  elif [ -f package.json ]; then
+    check_node
+  else
+    echo "no known project file in $(pwd)" >&2
+    exit 1
+  fi
+}
+
 scan() {
-  trivy fs --quiet --skip-dirs .venv --skip-dirs node_modules --scanners vuln,secret,misconfig --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 .
+  trivy fs --quiet --skip-dirs '**/.venv' --skip-dirs '**/node_modules' --scanners vuln,secret,misconfig --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 .
   uvx --python 3.13 semgrep@1.185.0 scan --config p/default --error --quiet --metrics=off --no-git-ignore --exclude .venv --exclude node_modules .
 }
 
@@ -38,18 +51,16 @@ for app in out/*/app; do
   echo "== $app"
   (
     cd "$app"
-    if [ -f go.mod ]; then
-      check_go
-    elif [ -f pyproject.toml ]; then
-      check_python
-    elif [ -f package.json ]; then
-      check_node
+    if [ -d services ]; then
+      for service in services/*/; do
+        echo "-- $service"
+        (cd "$service" && check_project)
+      done
     else
-      echo "no known project file in $app" >&2
-      exit 1
+      check_project
     fi
     actionlint .github/workflows/*.yml
-    hadolint Dockerfile
+    find . -name Dockerfile -not -path '*/node_modules/*' -not -path '*/.venv/*' -print0 | xargs -0 hadolint
     if [ "${RUN_SCANS:-}" = true ]; then
       scan
     else
