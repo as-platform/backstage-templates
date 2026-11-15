@@ -4,10 +4,13 @@ metadata:
   name: ${{ values.name }}
   description: ${{ values.description | dump }}
   annotations:
-    github.com/project-slug: as-platform/${{ values.name }}
+    github.com/project-slug: as-platform/${{ values.repo | default(values.name) }}
     backstage.io/kubernetes-id: ${{ values.name }}
     argocd/app-name: ${{ values.name }}
 spec:
   type: service
   lifecycle: experimental
   owner: ${{ values.owner }}
+{%- if values.system %}
+  system: ${{ values.system }}
+{%- endif %}

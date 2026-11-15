@@ -33,6 +33,7 @@ Base images come from `zot.homelab`: it needs an `/etc/hosts` entry, the `homela
 docker build --platform linux/amd64 -t ${{ values.name }}:local .
 docker run --rm --platform linux/amd64 --read-only --user 65532:65532 -p 8080:8080 ${{ values.name }}:local
 ```
+{%- if not values.monorepo %}
 
 ## CI
 
@@ -67,4 +68,5 @@ The initial push runs CI before the secrets exist and fails: set them, then re-r
 2. After the secrets are set, a push to `main` turns `go`, `security` and `image` green. `deploy` fails with `values.yaml not found`: the file is not in `k3s` yet.
 3. Merge the pull request. The Application stays `Degraded` (`ImagePullBackOff` on `bootstrap`) until the next step.
 4. Re-run the `deploy` job. It commits the real tag to `k3s`, Argo CD syncs, and the service answers on `https://${{ values.name }}.homelab` (add `${{ values.name }}.homelab` to `/etc/hosts` next to the other `*.homelab` entries).
+{%- endif %}
 {%- endif %}
