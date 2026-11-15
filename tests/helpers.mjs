@@ -63,8 +63,9 @@ export const templateYaml = (steps) =>
   YAML.stringify({
     spec: {
       parameters: [],
-      steps: steps.map(({ id, url, values = {}, untouched }) => ({
+      steps: steps.map(({ id, url, values = {}, untouched, condition }) => ({
         id,
+        ...(condition === undefined ? {} : { if: condition }),
         action: 'fetch:template',
         input: {
           url,

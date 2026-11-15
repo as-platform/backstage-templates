@@ -94,6 +94,36 @@ describe('render', () => {
     assert.equal(fs.readlinkSync(out('link.txt')), 'plain.txt');
   });
 
+  it('evaluates a comparison condition to a boolean, as Backstage does', () => {
+    const conditional = path.join(dir, 'conditional.yaml');
+    write(
+      conditional,
+      templateYaml([
+        { id: 'a', url: './second', values, condition: "${{ parameters.mode == 'a' }}" },
+        { id: 'b', url: './second', values, condition: "${{ parameters.mode == 'b' }}" },
+        { id: 'plain', url: './second', values, condition: '${{ parameters.flag }}' },
+      ]),
+    );
+    const outDir = path.join(dir, 'conditional-out');
+    assert.deepEqual(renderTemplate(conditional, { mode: 'a', flag: false }, outDir).steps, ['a']);
+    assert.deepEqual(renderTemplate(conditional, { mode: 'b', flag: true }, outDir).steps, ['b', 'plain']);
+  });
+
+  it('keeps an empty string result of an inline condition empty', () => {
+    const inline = path.join(dir, 'inline.yaml');
+    write(
+      inline,
+      templateYaml([
+        { id: 'a', url: './second', values: { n: "${{ 'x' if parameters.mode == 'a' else '' }}" } },
+      ]),
+    );
+    const outDir = path.join(dir, 'inline-out');
+    renderTemplate(inline, { mode: 'b' }, outDir);
+    assert.equal(fs.readFileSync(path.join(outDir, 'app', 'a.txt'), 'utf8'), 'second ');
+    renderTemplate(inline, { mode: 'a' }, outDir);
+    assert.equal(fs.readFileSync(path.join(outDir, 'app', 'a.txt'), 'utf8'), 'second x');
+  });
+
   it('drops entries whose rendered path is empty', () => {
     assert.equal(fs.existsSync(out('dropped.txt')), false);
     assert.equal(fs.existsSync(out('${{ values.empty }}')), false);

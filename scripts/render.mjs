@@ -18,10 +18,25 @@ const wholeExpression = /^\$\{\{\s*([\w.]+)\s*\}\}$/;
 const lookup = (context, expression) =>
   expression.split('.').reduce((value, key) => (value == null ? undefined : value[key]), context);
 
+const singleExpression = /^\$\{\{([^]*)\}\}$/;
+
+const evaluate = (input, context) => {
+  const single = input.match(singleExpression);
+  if (single && !single[1].includes('}}') && !single[1].includes('${{')) {
+    const rendered = environment.renderString(`\${{ (${single[1]}) | dump }}`, context);
+    try {
+      return JSON.parse(rendered);
+    } catch {
+      return rendered;
+    }
+  }
+  return environment.renderString(input, context);
+};
+
 export const resolve = (input, context) => {
   if (typeof input === 'string') {
     const match = input.match(wholeExpression);
-    return match ? lookup(context, match[1]) : environment.renderString(input, context);
+    return match ? lookup(context, match[1]) : evaluate(input, context);
   }
   if (Array.isArray(input)) {
     return input.map((item) => resolve(item, context));
