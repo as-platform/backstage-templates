@@ -1,0 +1,85 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-{% raw %}${{ github.ref }}{% endraw %}
+  cancel-in-progress: {% raw %}${{ github.event_name == 'pull_request' }}{% endraw %}
+
+jobs:
+  test:
+    uses: as-platform/ci-templates/.github/workflows/monorepo-ci.yml@main
+    with:
+      services: '[{"name":"api","path":"services/api","language":"${{ values.apiLanguage }}"},{"name":"web","path":"services/web","language":"node"}]'
+
+  security:
+    uses: as-platform/ci-templates/.github/workflows/security.yml@main
+
+  image-api:
+    needs:
+      - test
+      - security
+    if: contains(fromJSON(needs.test.outputs.selected).*.name, 'api')
+    uses: as-platform/ci-templates/.github/workflows/image-build.yml@main
+    with:
+      name: ${{ values.name }}-api
+      context: services/api
+      registry: {% raw %}${{ vars.ZOT_REGISTRY }}{% endraw %}
+      push: {% raw %}${{ github.event_name == 'push' }}{% endraw %}
+    secrets:
+      ZOT_USER: {% raw %}${{ secrets.ZOT_USER }}{% endraw %}
+      ZOT_PASSWORD: {% raw %}${{ secrets.ZOT_PASSWORD }}{% endraw %}
+      COSIGN_PRIVATE_KEY: {% raw %}${{ secrets.COSIGN_PRIVATE_KEY }}{% endraw %}
+      COSIGN_PASSWORD: {% raw %}${{ secrets.COSIGN_PASSWORD }}{% endraw %}
+
+  image-web:
+    needs:
+      - test
+      - security
+    if: contains(fromJSON(needs.test.outputs.selected).*.name, 'web')
+    uses: as-platform/ci-templates/.github/workflows/image-build.yml@main
+    with:
+      name: ${{ values.name }}-web
+      context: services/web
+      registry: {% raw %}${{ vars.ZOT_REGISTRY }}{% endraw %}
+      push: {% raw %}${{ github.event_name == 'push' }}{% endraw %}
+    secrets:
+      ZOT_USER: {% raw %}${{ secrets.ZOT_USER }}{% endraw %}
+      ZOT_PASSWORD: {% raw %}${{ secrets.ZOT_PASSWORD }}{% endraw %}
+      COSIGN_PRIVATE_KEY: {% raw %}${{ secrets.COSIGN_PRIVATE_KEY }}{% endraw %}
+      COSIGN_PASSWORD: {% raw %}${{ secrets.COSIGN_PASSWORD }}{% endraw %}
+{%- if values.deployDev %}
+
+  deploy-api:
+    if: github.event_name == 'push'
+    needs: image-api
+    uses: as-platform/ci-templates/.github/workflows/deploy-bump.yml@main
+    with:
+      app: ${{ values.name }}-api
+      tag: {% raw %}${{ needs.image-api.outputs.tag }}{% endraw %}
+      platform-repo: as-platform/k3s
+      mode: commit
+    secrets:
+      PLATFORM_TOKEN: {% raw %}${{ secrets.PLATFORM_TOKEN }}{% endraw %}
+
+  deploy-web:
+    if: github.event_name == 'push'
+    needs: image-web
+    uses: as-platform/ci-templates/.github/workflows/deploy-bump.yml@main
+    with:
+      app: ${{ values.name }}-web
+      tag: {% raw %}${{ needs.image-web.outputs.tag }}{% endraw %}
+      platform-repo: as-platform/k3s
+      mode: commit
+    secrets:
+      PLATFORM_TOKEN: {% raw %}${{ secrets.PLATFORM_TOKEN }}{% endraw %}
+{%- endif %}

@@ -211,7 +211,7 @@ for (const name of serviceTemplates) {
     it('leaves no template syntax behind', () => {
       for (const { outDir } of rendered) {
         for (const file of files(outDir)) {
-          assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /\$\{\{\s*(values|parameters)\.|\{%|\{#/, file);
+          assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /\{\{\s*(values|parameters)\.|\{%|\{#/, file);
         }
       }
     });
