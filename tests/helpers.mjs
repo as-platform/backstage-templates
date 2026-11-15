@@ -6,6 +6,15 @@ import { root } from '../scripts/render.mjs';
 
 export const serviceTemplates = ['back-go', 'back-python', 'front-react'];
 
+export const allTemplates = [...serviceTemplates, 'monorepo'];
+
+export const maxNameLength = (template) => (template === 'monorepo' ? 28 : 32);
+
+export const fixturesOf = (template) =>
+  template === 'monorepo'
+    ? ['monorepo-go-full', 'monorepo-python-minimal']
+    : [`${template}-full`, `${template}-minimal`];
+
 export const implementedTemplates = () =>
   fs
     .readdirSync(path.join(root, 'scaffolder'))

@@ -1,0 +1,10 @@
+{
+  "template": "monorepo",
+  "parameters": {
+    "name": "plain-mono",
+    "owner": "group:default/platform",
+    "description": "Minimal monorepo",
+    "apiLanguage": "python",
+    "deployDev": false
+  }
+}

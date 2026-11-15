@@ -6,16 +6,17 @@ import { templateEntityV1beta3Validator } from '@backstage/plugin-scaffolder-com
 import Ajv from 'ajv';
 import { renderFixture, root } from '../scripts/render.mjs';
 import {
+  allTemplates,
   conventionalCommit,
   files,
+  fixturesOf,
   implementedTemplates,
   loadTemplate,
+  maxNameLength,
   reservedNames,
   serviceTemplates,
   tempRoot,
 } from './helpers.mjs';
-
-const longestName = 'a'.repeat(32);
 
 const withoutComments = new Set([
   'uv.lock', 'go.sum', 'go.mod', 'package-lock.json', '.python-version', 'renovate.json', 'catalog-info.json',
@@ -62,8 +63,17 @@ const exemptFromSuppressionCheck = (base) => withoutComments.has(base) || base.e
 
 const properties = (template) => Object.assign({}, ...template.spec.parameters.map((page) => page.properties));
 
-for (const name of serviceTemplates) {
+const urlsOf = (template, step) => {
+  const match = step.input.url.match(/\$\{\{\s*parameters\.(\w+)\s*\}\}/);
+  if (!match) {
+    return [step.input.url];
+  }
+  return properties(template)[match[1]].enum.map((value) => step.input.url.replace(match[0], value));
+};
+
+for (const name of allTemplates) {
   const { file, text, template } = loadTemplate(name);
+  const longestName = 'a'.repeat(maxNameLength(name));
 
   describe(`${name} template.yaml`, () => {
     it('is a valid Template.v1beta3 entity', async () => {
@@ -88,7 +98,9 @@ for (const name of serviceTemplates) {
       const fetches = template.spec.steps.filter((step) => step.action === 'fetch:template');
       assert.ok(fetches.length > 0);
       for (const step of fetches) {
-        assert.ok(fs.existsSync(path.resolve(path.dirname(file), step.input.url)), step.input.url);
+        for (const url of urlsOf(template, step)) {
+          assert.ok(fs.existsSync(path.resolve(path.dirname(file), url)), url);
+        }
       }
     });
 
@@ -151,7 +163,7 @@ for (const name of serviceTemplates) {
     });
 
     it('rejects reserved and malformed service names', () => {
-      const malformed = ['Hello', 'a', 'ab', 'x-', '-ab', '1abc', 'a_b', 'a'.repeat(33), ''];
+      const malformed = ['Hello', 'a', 'ab', 'x-', '-ab', '1abc', 'a_b', 'a'.repeat(maxNameLength(name) + 1), ''];
       for (const value of [...reservedNames, ...malformed]) {
         assert.equal(accepts(value), false, JSON.stringify(value));
       }
@@ -169,14 +181,14 @@ for (const name of serviceTemplates) {
   });
 }
 
-for (const name of serviceTemplates) {
+for (const name of allTemplates) {
   describe(`${name} rendered fixtures`, () => {
     let rendered;
     let outRoot;
 
     before(() => {
       outRoot = tempRoot();
-      rendered = ['full', 'minimal'].map((kind) => renderFixture(`${name}-${kind}`, outRoot));
+      rendered = fixturesOf(name).map((fixture) => renderFixture(fixture, outRoot));
     });
 
     after(() => {
@@ -227,8 +239,7 @@ describe('service templates', () => {
   });
 
   it('are all covered by the shared checks', () => {
-    const implemented = implementedTemplates().filter((name) => name !== 'monorepo');
-    assert.deepEqual(implemented.sort(), [...serviceTemplates].sort());
+    assert.deepEqual(implementedTemplates().sort(), [...allTemplates].sort());
   });
 
   it('share one name schema', () => {

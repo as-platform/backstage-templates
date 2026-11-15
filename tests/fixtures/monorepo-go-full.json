@@ -1,0 +1,10 @@
+{
+  "template": "monorepo",
+  "parameters": {
+    "name": "hello-mono",
+    "owner": "group:default/platform",
+    "description": "Hello: monorepo",
+    "apiLanguage": "go",
+    "deployDev": true
+  }
+}
