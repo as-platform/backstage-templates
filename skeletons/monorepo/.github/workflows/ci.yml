@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-{% raw %}${{ github.ref }}{% endraw %}
+  group: ci-{% raw %}${{ github.event_name == 'pull_request' && github.ref || github.sha }}{% endraw %}
   cancel-in-progress: {% raw %}${{ github.event_name == 'pull_request' }}{% endraw %}
 
 jobs:

@@ -26,6 +26,8 @@ Each service has its own README with the endpoints and the local run instruction
 
 The first push to `main` selects both services. Both images get the same tag `sha-<7 chars>`.
 
+Every push is compared with the previous one, so a service that was not touched by a push is not rebuilt. If a run fails, re-run it: a later push that does not change the failed service will not build it again. Push runs never cancel each other, so no build is lost. If two pushes to the same service overlap, the run that finishes last sets the tag, so re-run `deploy-api` or `deploy-web` of the latest run.
+
 Org-level secrets and variables are not available to private repositories on the Free plan, so set them on this repository:
 
 ```

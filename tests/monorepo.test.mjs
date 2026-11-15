@@ -107,6 +107,18 @@ describe('rendered monorepo skeleton', () => {
     }
   });
 
+  it('never cancels a push run, so no changed service is lost', () => {
+    for (const app of [goApp, pythonApp]) {
+      const { concurrency } = YAML.parse(read(app, '.github', 'workflows', 'ci.yml'));
+      assert.equal(concurrency.group, "ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}");
+      assert.equal(concurrency['cancel-in-progress'], "${{ github.event_name == 'pull_request' }}");
+    }
+  });
+
+  it('tells the owner that a failed run has to be re-run', () => {
+    assert.match(read(goApp, 'README.md'), /re-run it/);
+  });
+
   it('never passes all secrets and drops the deploy jobs without deployDev', () => {
     for (const app of [goApp, pythonApp]) {
       assert.doesNotMatch(read(app, '.github', 'workflows', 'ci.yml'), /secrets:\s*inherit/);
