@@ -6,7 +6,7 @@ import { after, before, describe, it } from 'node:test';
 import Ajv from 'ajv';
 import YAML from 'yaml';
 import { renderFixture, renderTemplate, root } from '../scripts/render.mjs';
-import { bumpImageTag, exists, files, loadTemplate, read, tempRoot } from './helpers.mjs';
+import { bumpImageTag, exists, files, loadTemplate, read, reservedNames, tempRoot } from './helpers.mjs';
 
 const secretNames = ['ZOT_USER', 'ZOT_PASSWORD', 'COSIGN_PRIVATE_KEY', 'COSIGN_PASSWORD'];
 const sourceOf = (...parts) => fs.readFileSync(path.join(root, 'skeletons', ...parts));
@@ -194,13 +194,29 @@ describe('monorepo form', () => {
     const page = monorepo.spec.parameters[0];
     const accepts = new Ajv({ strict: false }).compile({ type: 'object', properties: { name: nameOf(backGo) } });
     const own = new Ajv({ strict: false }).compile({ type: 'object', properties: { name: nameOf(monorepo) } });
-    for (const name of ['abc', 'hello-mono', 'a'.repeat(28)]) {
+    for (const name of ['abc', 'hello-mono', 'a'.repeat(28), 'kubex', 'my-kube']) {
       assert.equal(own({ name }), true, name);
-      for (const suffix of ['api', 'web']) {
-        assert.equal(accepts({ name: `${name}-${suffix}` }), true, `${name}-${suffix}`);
+    }
+    const candidates = [
+      ...reservedNames,
+      'kube',
+      'kubex',
+      'kube-x',
+      'as-platform',
+      'abc',
+      'hello-mono',
+      ...Array.from({ length: 26 }, (_, index) => 'a'.repeat(index + 3)),
+    ];
+    for (const name of candidates) {
+      if (own({ name })) {
+        for (const suffix of ['api', 'web']) {
+          assert.equal(accepts({ name: `${name}-${suffix}` }), true, `${name}-${suffix}`);
+        }
       }
     }
-    assert.equal(own({ name: 'a'.repeat(29) }), false);
+    for (const name of ['kube', 'kube-x', 'as-platform', 'a'.repeat(29), ...reservedNames]) {
+      assert.equal(own({ name }), false, name);
+    }
     assert.deepEqual([...page.required].sort(), ['description', 'name', 'owner']);
   });
 

@@ -21,8 +21,8 @@ spec:
         name:
           title: Name
           type: string
-          description: Becomes the repository and the prefix of the two services, namespaces, Applications and release names (name-api and name-web). Lowercase letters, digits and dashes, 3 to 28 characters. Names of platform components and namespaces are reserved
-          pattern: '^(?!kube-)[a-z][a-z0-9-]{1,26}[a-z0-9]$'
+          description: Becomes the repository and the prefix of the two services, namespaces, Applications and release names (name-api and name-web). Lowercase letters, digits and dashes, 3 to 28 characters. Names of platform components, namespaces and catalog systems are reserved
+          pattern: '^(?!kube(-|$)|as-platform$)[a-z][a-z0-9-]{1,26}[a-z0-9]$'
           not:
             enum:
               - argocd
