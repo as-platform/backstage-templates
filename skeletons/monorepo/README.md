@@ -41,7 +41,7 @@ gh secret set PLATFORM_TOKEN -R as-platform/${{ values.name }}
 {%- endif %}
 ```
 
-The initial push runs CI before the secrets exist and fails: set them, then re-run the workflow.
+The initial push runs CI before the secrets exist and fails. GitHub fixes the secret values when a run is created, so set the secrets, wait until that run has finished (or cancel it) and only then re-run it with `gh run rerun <id> --failed`; a job that starts after you set the secrets still sees them empty.
 {%- if values.deployDev %}
 
 ## First deploy
