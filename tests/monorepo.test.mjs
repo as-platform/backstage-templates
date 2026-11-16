@@ -229,7 +229,7 @@ describe('monorepo form', () => {
     for (const name of ['kube', 'kube-x', 'as-platform', 'a'.repeat(29), ...reservedNames]) {
       assert.equal(own({ name }), false, name);
     }
-    assert.deepEqual([...page.required].sort(), ['description', 'name', 'owner']);
+    assert.deepEqual([...page.required].sort(), ['name', 'owner']);
   });
 
   it('offers go and python for the api with go as the default', () => {

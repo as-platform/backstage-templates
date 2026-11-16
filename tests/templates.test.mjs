@@ -4,7 +4,8 @@ import path from 'node:path';
 import { after, before, describe, it } from 'node:test';
 import { templateEntityV1beta3Validator } from '@backstage/plugin-scaffolder-common';
 import Ajv from 'ajv';
-import { renderFixture, root } from '../scripts/render.mjs';
+import YAML from 'yaml';
+import { renderFixture, renderTemplate, root } from '../scripts/render.mjs';
 import {
   allTemplates,
   conventionalCommit,
@@ -169,8 +170,12 @@ for (const name of allTemplates) {
       }
     });
 
-    it('requires name, owner and description', () => {
-      assert.deepEqual([...page.required].sort(), ['description', 'name', 'owner']);
+    it('requires only name and owner', () => {
+      assert.deepEqual([...page.required].sort(), ['name', 'owner']);
+    });
+
+    it('accepts a form without a description', () => {
+      assert.equal(validate({ name: 'hello-go', owner: 'group:default/platform' }), true);
     });
 
     it('defaults to deploy to dev', () => {
@@ -217,6 +222,21 @@ for (const name of allTemplates) {
             assert.doesNotMatch(content, suppression, file);
           }
         }
+      }
+    });
+
+    it('renders without a description', () => {
+      const outDir = path.join(outRoot, 'without-description');
+      renderTemplate(loadTemplate(name).file, { name: 'plain', owner: 'group:default/platform', deployDev: false }, outDir);
+      const catalogs = files(outDir).filter((file) => path.basename(file) === 'catalog-info.yaml');
+      assert.ok(catalogs.length > 0);
+      for (const file of catalogs) {
+        for (const document of YAML.parseAllDocuments(fs.readFileSync(file, 'utf8'))) {
+          assert.equal(document.toJS().metadata.description, undefined, file);
+        }
+      }
+      for (const file of files(outDir).filter((entry) => path.basename(entry) === 'README.md')) {
+        assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /\n\n\n/, file);
       }
     });
 

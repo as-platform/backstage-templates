@@ -2,7 +2,9 @@ apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
   name: ${{ values.name }}
+{%- if values.description %}
   description: ${{ values.description | dump }}
+{%- endif %}
   annotations:
     github.com/project-slug: as-platform/${{ values.repo | default(values.name) }}
     backstage.io/kubernetes-id: ${{ values.name }}

@@ -1,8 +1,8 @@
 # ${{ values.name }}
 
-${{ values.description }}
+{% if values.description %}${{ values.description }}
 
-Owner: `${{ values.owner }}`
+{% endif %}Owner: `${{ values.owner }}`
 
 ## Layout
 

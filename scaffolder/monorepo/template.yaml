@@ -16,7 +16,6 @@ spec:
       required:
         - name
         - owner
-        - description
       properties:
         name:
           title: Name
