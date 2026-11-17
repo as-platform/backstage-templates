@@ -41,6 +41,7 @@ spec:
               - root
               - openbao
               - tailscale
+              - external-secrets
               - apps
               - infra
           ui:autofocus: true
